@@ -210,6 +210,16 @@
     .cal-job.editable { cursor: pointer; }
     .cal-job.editable:hover { filter: brightness(0.95); }
     .cal-readonly-note { font-size: 11px; color: var(--color-text-secondary); display: inline-flex; align-items: center; gap: 4px; }
+    .cal-day.editable-day { cursor: pointer; }
+    .cal-day.editable-day:hover { background: #F4F8FC; border-color: var(--color-border-info); }
+    .cal-off { font-size: 9px; padding: 1px 4px; border-radius: 3px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: #FCEBEB; color: #791F1F; border-left: 2px solid #B83A5F; display: flex; align-items: center; gap: 3px; }
+    .cal-off i { font-size: 10px; }
+    .avail-row { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); margin-bottom: 6px; cursor: pointer; }
+    .avail-row input { width: 16px; height: 16px; flex-shrink: 0; }
+    .avail-row > span:nth-child(2) { flex: 1; font-size: 13px; }
+    .avail-state { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
+    .avail-state.on { background: #EAF3DE; color: #27500A; }
+    .avail-state.off { background: #FCEBEB; color: #791F1F; }
 
     .report-priority-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
     .priority-section { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; }
@@ -453,7 +463,8 @@
       { name:'Wood Masters', specialty:'CARPENTER' },
       { name:'Pak Painters', specialty:'PAINTER' },
       { name:'Internal \u2014 Jamil Kumar', specialty:'GENERAL' }
-    ]
+    ],
+    laborOff: {}
   };
 
   let state;
@@ -462,6 +473,7 @@
       const r = localStorage.getItem(STATE_KEY);
       state = r ? JSON.parse(r) : JSON.parse(JSON.stringify(DEFAULT_STATE));
     } catch(e) { state = JSON.parse(JSON.stringify(DEFAULT_STATE)); }
+    if (!state.laborOff) state.laborOff = {};
   }
   function saveState() { try { localStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch(e) {} }
   function resetState() { state = JSON.parse(JSON.stringify(DEFAULT_STATE)); saveState(); render(); toast('Reset'); }
@@ -597,12 +609,14 @@
     const f = getFir(id); const r = roomInfo(f.area); const isReassign = !!f.assignedLabor;
     const laborList = state.laborOptions.filter(o => o.specialty === f.dept || o.specialty === 'GENERAL');
     const useList = laborList.length ? laborList : state.laborOptions;
-    const opts = useList.map(o => '<option'+(f.assignedLabor===o.name?' selected':'')+'>'+o.name+' ('+o.specialty+')</option>').join('');
+    const date = f.scheduledDate || todayStr();
+    const opts = bmLaborOptionsHtml(useList, date, f.assignedLabor);
     const body = '<div class="muted" style="margin-bottom:10px;">'+f.desc+' \u00b7 '+f.area+' \u00b7 '+f.dept+'</div>' +
       '<div class="room-strip '+(r.vacant?'vacant':'occupied')+'"><i class="ti ti-'+(r.vacant?'check':'alert-circle')+'"></i>'+f.area+' · '+r.note+'</div>' +
-      '<div class="form-row" style="margin-top:10px;"><label class="form-label">Assign labor</label><select class="form-input" id="bm-labor">'+opts+'</select></div>' +
-      '<div class="two-col"><div class="form-row"><label class="form-label">Date</label><input class="form-input" type="date" id="bm-date" value="'+(f.scheduledDate||todayStr())+'"></div><div class="form-row"><label class="form-label">Time window</label><input class="form-input" id="bm-time" value="'+(f.scheduledTime||'10:00-12:00')+'"></div></div>' +
-      '<div class="alert-card info"><i class="ti ti-info-circle"></i>Only you (Branch Manager) can align labor. This shows on the calendar; Altamash can view it but cannot edit it.</div>';
+      '<div class="two-col"><div class="form-row"><label class="form-label">Date</label><input class="form-input" type="date" id="bm-date" value="'+date+'" onchange="bmAssignDateChanged(\''+id+'\')"></div><div class="form-row"><label class="form-label">Time window</label><input class="form-input" id="bm-time" value="'+(f.scheduledTime||'10:00-12:00')+'"></div></div>' +
+      '<div class="form-row"><label class="form-label">Assign labor</label><select class="form-input" id="bm-labor">'+opts+'</select></div>' +
+      '<div id="bm-avail-hint" class="escal-info">'+(offLaborOn(date).length ? '<i class="ti ti-user-off"></i> Off on '+date+': <b>'+offLaborOn(date).join(', ')+'</b>' : '<i class="ti ti-user-check"></i> All labor available on '+date+'.')+'</div>' +
+      '<div class="alert-card info"><i class="ti ti-info-circle"></i>Only you (Branch Manager) can align labor. Set days off by tapping a day on the calendar; off labor is flagged here. Altamash can view but not edit.</div>';
     showModal((isReassign?'Re-align labor \u2014 ':'Align labor \u2014 ')+id, body, '<button class="btn-sm" onclick="closeModalBtn()">Cancel</button><button class="btn-sm primary" onclick="bmAssignConfirm(\''+id+'\')"><i class="ti ti-check"></i>'+(isReassign?'Update schedule':'Schedule')+'</button>');
   };
   window.bmAssignConfirm = function(id) {
@@ -725,6 +739,52 @@
     saveState(); closeModal(); toast('Saved'); render();
   };
 
+  /* ===== Labor availability (BM edits the calendar to his labor force's availability) ===== */
+  function laborOffDates(name) { return (state.laborOff && state.laborOff[name]) || []; }
+  function laborIsOff(name, date) { return laborOffDates(name).indexOf(date) > -1; }
+  function offLaborOn(date) { return state.laborOptions.filter(o => laborIsOff(o.name, date)).map(o => o.name); }
+  function availableLaborOn(date, dept) { return state.laborOptions.filter(o => (!dept || o.specialty === dept || o.specialty === 'GENERAL') && !laborIsOff(o.name, date)); }
+  function bmLaborOptionsHtml(useList, date, selected) {
+    return useList.map(o => { const off = laborIsOff(o.name, date); return '<option' + (selected === o.name ? ' selected' : '') + '>' + o.name + ' (' + o.specialty + ')' + (off ? ' — OFF this day' : '') + '</option>'; }).join('');
+  }
+  window.bmDayAvailability = function(dateStr) {
+    const rows = state.laborOptions.map((o, i) => {
+      const off = laborIsOff(o.name, dateStr);
+      return '<label class="avail-row"><input type="checkbox" id="av-' + i + '"' + (off ? '' : ' checked') + ' onchange="var s=this.parentNode.querySelector(\'.avail-state\'); s.textContent=this.checked?\'Available\':\'Off\'; s.className=\'avail-state \'+(this.checked?\'on\':\'off\');"><span><b>' + o.name + '</b> <span class="muted">(' + o.specialty + ')</span></span><span class="avail-state ' + (off ? 'off' : 'on') + '">' + (off ? 'Off' : 'Available') + '</span></label>';
+    }).join('');
+    const jobs = state.firs.filter(f => f.scheduledDate === dateStr && f.assignedLabor);
+    const jobsNote = jobs.length ? '<div class="escal-info"><i class="ti ti-calendar-event"></i> Already scheduled this day: ' + jobs.map(j => j.assignedLabor + ' (' + j.id + ')').join(', ') + '</div>' : '';
+    const body = '<div class="muted" style="margin-bottom:10px;">Set which of your labor force is available on <b>' + dateStr + '</b>. Unchecked = off / unavailable.</div>' + jobsNote + rows +
+      '<div class="alert-card info"><i class="ti ti-info-circle"></i>Off labor is flagged when you align jobs, and shown on the calendar. Only you (Branch Manager) can edit this.</div>';
+    showModal('Labor availability — ' + dateStr, body, '<button class="btn-sm" onclick="closeModalBtn()">Cancel</button><button class="btn-sm primary" onclick="bmDayAvailabilitySave(\'' + dateStr + '\')"><i class="ti ti-check"></i>Save availability</button>');
+  };
+  window.bmDayAvailabilitySave = function(dateStr) {
+    state.laborOff = state.laborOff || {};
+    state.laborOptions.forEach((o, i) => {
+      const el = document.getElementById('av-' + i); if (!el) return;
+      let arr = laborOffDates(o.name).filter(d => d !== dateStr);
+      if (!el.checked) arr.push(dateStr);
+      if (arr.length) state.laborOff[o.name] = arr; else delete state.laborOff[o.name];
+    });
+    const off = offLaborOn(dateStr);
+    audit('Hammad', 'Set labor availability for ' + dateStr + (off.length ? ' (off: ' + off.join(', ') + ')' : ' (all available)'));
+    addActivity('Hammad updated labor availability for ' + dateStr);
+    saveState(); closeModal(); toast('Availability updated'); render();
+  };
+  window.bmAssignDateChanged = function(id) {
+    const f = getFir(id); const date = document.getElementById('bm-date').value;
+    const laborList = state.laborOptions.filter(o => o.specialty === f.dept || o.specialty === 'GENERAL');
+    const useList = laborList.length ? laborList : state.laborOptions;
+    const sel = document.getElementById('bm-labor').value.split(' (')[0];
+    document.getElementById('bm-labor').innerHTML = bmLaborOptionsHtml(useList, date, sel);
+    bmAssignUpdateHint(date);
+  };
+  function bmAssignUpdateHint(date) {
+    const el = document.getElementById('bm-avail-hint'); if (!el) return;
+    const off = offLaborOn(date);
+    el.innerHTML = off.length ? '<i class="ti ti-user-off"></i> Off on ' + date + ': <b>' + off.join(', ') + '</b>' : '<i class="ti ti-user-check"></i> All labor available on ' + date + '.';
+  }
+
   window.calNavigate = function(dir) {
     state.cal.month += dir; if(state.cal.month>12){state.cal.month=1; state.cal.year++;} if(state.cal.month<1){state.cal.month=12; state.cal.year--;}
     saveState(); renderMain();
@@ -735,12 +795,12 @@
     const mn = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
     const monthLabel = mn[state.cal.month] + ' ' + state.cal.year;
     let h = '<div class="page-title">Labor Calendar</div><div class="page-sub">' + (role === 'admin' ? 'Oversight of all scheduled labor across branches \u2014 read-only' : 'Plan, align and reschedule your labor force') + '</div>';
-    if (role === 'bm') h += '<div class="alert-card info"><i class="ti ti-info-circle"></i>Tap any scheduled job to re-align labor or change its date/time. Only the Branch Manager can edit the calendar.</div>';
+    if (role === 'bm') h += '<div class="alert-card info"><i class="ti ti-info-circle"></i>Tap an empty day to set your labor force’s availability (days off / unavailable). Tap a scheduled job to re-align it. Only the Branch Manager can edit the calendar.</div>';
     else h += '<div class="alert-card"><i class="ti ti-lock"></i>Read-only \u2014 labor alignment is managed by the Branch Manager. Altamash can watch but not change it.</div>';
     const upcoming = state.firs.filter(f => f.scheduledDate);
     const thisMonth = upcoming.filter(f => f.scheduledDate.startsWith(state.cal.year + '-' + String(state.cal.month).padStart(2,'0')));
     h += '<div class="kpi-grid"><div class="kpi"><div class="kpi-label">Scheduled this month</div><div class="kpi-val">' + thisMonth.length + '</div></div><div class="kpi"><div class="kpi-label">Today</div><div class="kpi-val warn">' + upcoming.filter(f => f.scheduledDate === todayStr()).length + '</div></div><div class="kpi"><div class="kpi-label">Awaiting verify</div><div class="kpi-val crit">' + state.firs.filter(f => f.subStatus === 'marked_done').length + '</div></div></div>';
-    h += '<div class="section-card"><div class="cal-head"><div class="cal-nav"><button class="btn-sm" onclick="calNavigate(-1)"><i class="ti ti-chevron-left"></i></button><div class="cal-month">' + monthLabel + '</div><button class="btn-sm" onclick="calNavigate(1)"><i class="ti ti-chevron-right"></i></button></div><div class="cal-legend"><span class="legend-chip"><span class="legend-dot" style="background:#9FE1CB"></span>Assigned</span><span class="legend-chip"><span class="legend-dot" style="background:#F3C2D5"></span>Awaiting verify</span><span class="legend-chip"><span class="legend-dot" style="background:#D0CECB"></span>Done</span></div></div><div class="cal-grid">';
+    h += '<div class="section-card"><div class="cal-head"><div class="cal-nav"><button class="btn-sm" onclick="calNavigate(-1)"><i class="ti ti-chevron-left"></i></button><div class="cal-month">' + monthLabel + '</div><button class="btn-sm" onclick="calNavigate(1)"><i class="ti ti-chevron-right"></i></button></div><div class="cal-legend"><span class="legend-chip"><span class="legend-dot" style="background:#9FE1CB"></span>Assigned</span><span class="legend-chip"><span class="legend-dot" style="background:#F3C2D5"></span>Awaiting verify</span><span class="legend-chip"><span class="legend-dot" style="background:#D0CECB"></span>Done</span><span class="legend-chip"><span class="legend-dot" style="background:#B83A5F"></span>Labor off</span></div></div><div class="cal-grid">';
     ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(w => h += '<div class="cal-wday">'+w+'</div>');
     const y = state.cal.year, m = state.cal.month;
     const fd = new Date(y,m-1,1); let off = fd.getDay()-1; if (off<0) off=6;
@@ -749,12 +809,16 @@
     for (let i=off-1; i>=0; i--) h += '<div class="cal-day other-month"><div class="cal-num">'+(pmd-i)+'</div></div>';
     for (let d=1; d<=dim; d++) {
       const dStr = ds(y,m,d); const dayJobs = upcoming.filter(f => f.scheduledDate === dStr); const isT = dStr === tStr;
-      h += '<div class="cal-day'+(isT?' today':'')+'"><div class="cal-num">'+d+'</div>';
+      const offDay = role === 'bm' ? offLaborOn(dStr) : [];
+      const dayClick = role === 'bm' ? ' editable-day" onclick="bmDayAvailability(\''+dStr+'\')" title="Set labor availability for '+dStr : '';
+      h += '<div class="cal-day'+(isT?' today':'')+dayClick+'"><div class="cal-num">'+d+'</div>';
       dayJobs.slice(0,3).forEach(j => {
         const cls = j.status==='done' ? 'done' : (j.subStatus==='marked_done' ? 'pending-verify' : 'assigned');
         h += '<div class="cal-job '+cls+'" onclick="openFlowModal(\''+j.id+'\', \''+role+'\'); event.stopPropagation();" title="'+j.id+'">' + (j.assignedLabor ? j.assignedLabor.split(' ')[0] : '?') + ' \u00b7 ' + j.area.replace('Room ','') + '</div>';
       });
       if (dayJobs.length > 3) h += '<div class="cal-more">+'+(dayJobs.length-3)+' more</div>';
+      offDay.slice(0,2).forEach(n => h += '<div class="cal-off"><i class="ti ti-user-off"></i>'+n.split(' ')[0]+'</div>');
+      if (offDay.length > 2) h += '<div class="cal-more">+'+(offDay.length-2)+' off</div>';
       h += '</div>';
     }
     const tot = off+dim; const tr = (7-(tot%7))%7;
