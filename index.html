@@ -196,6 +196,20 @@
     .room-strip { font-size: 11px; padding: 6px 10px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); margin-top: 6px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 6px; }
     .room-strip.vacant { background: #EAF3DE; color: #27500A; }
     .room-strip.occupied { background: #FCEBEB; color: #791F1F; }
+    .room-inline { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; padding: 2px 7px; border-radius: var(--border-radius-md); font-weight: 500; background: #EAF3DE; color: #27500A; max-width: 100%; }
+    .room-inline.occupied { background: #FCEBEB; color: #791F1F; }
+    .room-inline i { font-size: 12px; }
+
+    .escal-banner { background: var(--color-background-danger); border: 1px solid var(--color-border-danger); padding: 10px 12px; border-radius: var(--border-radius-md); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--color-text-danger); animation: escalpulse 1.2s infinite; }
+    .escal-banner i { font-size: 18px; }
+    @keyframes escalpulse { 0% { box-shadow: 0 0 0 0 rgba(226,75,74,0.45); } 70% { box-shadow: 0 0 0 9px rgba(226,75,74,0); } 100% { box-shadow: 0 0 0 0 rgba(226,75,74,0); } }
+    .sla-badge { font-size: 10px; padding: 2px 7px; border-radius: var(--border-radius-md); font-weight: 500; background: #FCEBEB; color: #791F1F; display: inline-flex; align-items: center; gap: 3px; }
+    .sla-badge.warn { background: #FAEEDA; color: #633806; }
+    .escal-info { background: var(--color-background-warning); border-left: 3px solid var(--color-border-warning); padding: 8px 10px; border-radius: var(--border-radius-md); font-size: 11px; color: #633806; margin: 8px 0; }
+    .escal-info b { color: #633806; }
+    .cal-job.editable { cursor: pointer; }
+    .cal-job.editable:hover { filter: brightness(0.95); }
+    .cal-readonly-note { font-size: 11px; color: var(--color-text-secondary); display: inline-flex; align-items: center; gap: 4px; }
 
     .report-priority-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
     .priority-section { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; }
@@ -267,7 +281,7 @@
 
 <script>
 (function() {
-  const STATE_KEY = 'hamsun_3r_v3';
+  const STATE_KEY = 'hamsun_3r_v4';
 
   function ds(y,m,d) { return y + '-' + String(m).padStart(2,'0') + '-' + String(d).padStart(2,'0'); }
   function todayStr() { const d = new Date(); return ds(d.getFullYear(), d.getMonth()+1, d.getDate()); }
@@ -290,21 +304,49 @@
   };
 
   const ROOM_AVAIL = {
-    'Room G02': { vacant:true, note:'Vacant \u2014 3 days free' },
-    'Room 102': { vacant:false, note:'Occupied \u00b7 vacant 14:00\u201315:30' },
-    'Room 104A': { vacant:true, note:'Under renovation, free 5 days' },
-    'Room 104B': { vacant:false, note:'VIP \u00b7 checkout 12:00 today' },
-    'Room 107': { vacant:true, note:'Vacant for 2 days' },
-    'Room 109': { vacant:false, note:'Occupied until 16 May' },
-    'Room 207': { vacant:true, note:'Vacant 1 day' },
-    'Room 204': { vacant:false, note:'Checkout 15:00 today' },
-    'Cafe': { vacant:true, note:'Common area \u00b7 open access' },
-    'Kitchen Guest': { vacant:true, note:'Common area' },
-    'Generator Area': { vacant:true, note:'Utility area' },
-    'Passage Ground': { vacant:true, note:'Common area' },
-    'Passage First': { vacant:true, note:'Common area' },
-    'Lobby': { vacant:true, note:'Common area' }
+    'Room G02': { vacant:true, note:'Vacant \u2014 free for 3 days', branch:'FSL' },
+    'Room 102': { vacant:false, note:'Occupied \u00b7 vacant 14:00\u201315:30 today', branch:'FSL' },
+    'Room 104A': { vacant:true, note:'Under renovation \u2014 free for 5 days', branch:'FSL' },
+    'Room 104B': { vacant:false, note:'VIP \u00b7 checkout 12:00 today', branch:'FSL' },
+    'Room 107': { vacant:true, note:'Vacant for 2 days', branch:'FSL' },
+    'Room 109': { vacant:false, note:'Occupied until 16 Jun', branch:'FSL' },
+    'Room 207': { vacant:true, note:'Vacant for 1 day', branch:'FSL' },
+    'Room 204': { vacant:false, note:'Checkout 15:00 today', branch:'FSL' },
+    'Room C-101': { vacant:true, note:'Vacant \u2014 free for 4 days', branch:'CLF' },
+    'Room C-102': { vacant:false, note:'Occupied until 10 Jun', branch:'CLF' },
+    'Room C-201': { vacant:true, note:'Vacant for 2 days', branch:'CLF' },
+    'Room E-01': { vacant:true, note:'Vacant \u2014 open', branch:'EXT' },
+    'Room E-02': { vacant:false, note:'Checkout 11:00 today', branch:'EXT' },
+    'Cafe': { vacant:true, note:'Common area \u00b7 open access', branch:'ALL' },
+    'Kitchen Guest': { vacant:true, note:'Common area', branch:'ALL' },
+    'Generator Area': { vacant:true, note:'Utility area', branch:'ALL' },
+    'Passage Ground': { vacant:true, note:'Common area', branch:'ALL' },
+    'Passage First': { vacant:true, note:'Common area', branch:'ALL' },
+    'Lobby': { vacant:true, note:'Common area', branch:'ALL' }
   };
+  // Feature 3: rooms scoped to their branch (common areas show for every branch)
+  function roomsForBranch(b) { return Object.keys(ROOM_AVAIL).filter(r => ROOM_AVAIL[r].branch === b || ROOM_AVAIL[r].branch === 'ALL'); }
+  function roomInfo(area) { return ROOM_AVAIL[area] || { vacant:true, note:'No availability data', branch:'ALL' }; }
+  // Feature 4: compact availability badge shown beside an issue's room
+  function roomAvailInline(area) { const r = roomInfo(area); return '<span class="room-inline '+(r.vacant?'vacant':'occupied')+'" title="'+area+' \u00b7 '+r.note+'"><i class="ti ti-'+(r.vacant?'door':'door-off')+'"></i>'+(r.vacant?'Available':'Occupied')+' \u00b7 '+r.note+'</span>'; }
+
+  // Feature 2: SLA thresholds (days since reported) per priority before the BM escalation alarm fires
+  const SLA_DAYS = { High: 4, Medium: 10, Low: 20 };
+  function slaThreshold(f) { return SLA_DAYS[f.priority] || 10; }
+  function daysOpen(f) { return Math.floor((Date.now() - new Date(f.dateReported)) / 86400000); }
+  function isActiveFir(f) { return f.status !== 'done' && f.status !== 'rejected'; }
+  // Active issues that have breached their SLA window
+  function escalationFirs() { return state.firs.filter(f => isActiveFir(f) && daysOpen(f) >= slaThreshold(f)); }
+  // Escalated issues that currently need a BM response (alarm rings for these)
+  function alarmFirs() {
+    return escalationFirs().filter(f => {
+      const e = f.escalation;
+      if (!e) return true;                                    // never acknowledged
+      if (e.awaitingResponse) return true;                    // admin sent back / re-opened
+      if (e.expectedDate && todayStr() > e.expectedDate) return true; // promised timeline passed, still open
+      return false;
+    });
+  }
 
   function buildSampleFirs() {
     const base = [
@@ -462,6 +504,7 @@
     h += '<div class="flow-field"><div class="flow-field-label">Description</div><div class="flow-field-value">' + f.desc + '</div></div>';
     h += '<div class="flow-field"><div class="flow-field-label">Department</div><div class="flow-field-value">' + f.dept + '</div></div>';
     h += '<div class="flow-field"><div class="flow-field-label">Area</div><div class="flow-field-value">' + f.area + '</div></div>';
+    h += '<div class="flow-field"><div class="flow-field-label">Room availability</div><div class="flow-field-value">' + roomAvailInline(f.area) + '</div></div>';
     h += '<div class="flow-field"><div class="flow-field-label">Priority</div><div class="flow-field-value">' + f.priority + '</div></div>';
     h += '<div class="flow-field"><div class="flow-field-label">Reported by</div><div class="flow-field-value">' + f.reporter + '</div></div>';
     h += '<div class="flow-field"><div class="flow-field-label">Date reported</div><div class="flow-field-value">' + fmtDate(f.dateReported) + '</div></div></div>';
@@ -478,6 +521,8 @@
     const dur = f.duration || (f.verifiedAt ? durationBetween(f.dateReported, f.verifiedAt) : '\u2014');
     h += '<div class="flow-field"><div class="flow-field-label">Duration to resolve</div><div class="flow-field-value' + (dur === '\u2014' ? ' empty' : '') + '">' + dur + '</div></div>';
     if (f.reminderCount) h += '<div class="flow-field"><div class="flow-field-label">Reminders sent</div><div class="flow-field-value">' + f.reminderCount + ' \u00b7 last ' + fmtDate(f.lastReminded) + '</div></div>';
+    if (isActiveFir(f)) { const ov = daysOpen(f) >= slaThreshold(f); h += '<div class="flow-field"><div class="flow-field-label">SLA (' + f.priority + ')</div><div class="flow-field-value">' + daysOpen(f) + ' / ' + slaThreshold(f) + ' days ' + (ov ? '<span class="sla-badge">OVERDUE</span>' : '<span class="sla-badge warn">on track</span>') + '</div></div>'; }
+    if (f.escalation) h += escalReasonText(f);
     h += '</div></div>';
 
     h += '<div class="fir-flow-footer"><span class="edit-lock">' + editIcon + '</span>';
@@ -487,15 +532,30 @@
   }
 
   window.openNewIssueForm = function() {
-    const body = '<div class="form-row"><label class="form-label">Branch</label><select class="form-input" id="ni-branch">' + Object.keys(BRANCHES).map(b => '<option value="' + b + '">' + b + ' \u2014 ' + BRANCHES[b].name + '</option>').join('') + '</select></div>' +
-      '<div class="form-row"><label class="form-label">Area / Location</label><select class="form-input" id="ni-area">' + Object.keys(ROOM_AVAIL).map(a => '<option>' + a + '</option>').join('') + '</select></div>' +
+    const firstBranch = Object.keys(BRANCHES)[0];
+    const body = '<div class="form-row"><label class="form-label">Branch</label><select class="form-input" id="ni-branch" onchange="niBranchChanged()">' + Object.keys(BRANCHES).map(b => '<option value="' + b + '">' + b + ' \u2014 ' + BRANCHES[b].name + '</option>').join('') + '</select></div>' +
+      '<div class="form-row"><label class="form-label">Area / Location <span class="muted">(rooms of selected branch)</span></label><select class="form-input" id="ni-area" onchange="niAreaChanged()">' + roomsForBranch(firstBranch).map(a => '<option>' + a + '</option>').join('') + '</select></div>' +
+      '<div id="ni-avail" class="room-strip"></div>' +
       '<div class="two-col"><div class="form-row"><label class="form-label">Department</label><select class="form-input" id="ni-dept"><option>PLUMBER</option><option>ELECTRICIAN</option><option>CARPENTER</option><option>HVAC</option><option>PAINTER</option><option>IT</option><option>GENERAL</option></select></div>' +
       '<div class="form-row"><label class="form-label">Priority</label><select class="form-input" id="ni-priority"><option>High</option><option selected>Medium</option><option>Low</option></select></div></div>' +
       '<div class="form-row"><label class="form-label">FIR Description</label><textarea class="form-input" rows="3" id="ni-desc" placeholder="Describe the issue clearly..."></textarea></div>' +
       '<div class="form-row"><label class="form-label">Photo</label><div class="photo-box" onclick="this.classList.add(\'captured\'); this.innerHTML=\'<i class=ti ti-check></i> Captured\'"><i class="ti ti-camera" style="font-size:22px;"></i><div>Tap to capture</div></div></div>' +
       '<div class="alert-card info"><i class="ti ti-info-circle"></i>This will be sent to Altamash (Admin) for approval first.</div>';
     showModal('Report new issue', body, '<button class="btn-sm" onclick="closeModalBtn()">Cancel</button><button class="btn-sm primary" onclick="submitNewIssue()"><i class="ti ti-send"></i>Submit to Admin</button>');
+    updateNiAvail();
   };
+  function updateNiAvail() {
+    const el = document.getElementById('ni-avail'); if (!el) return;
+    const area = document.getElementById('ni-area').value; const r = roomInfo(area);
+    el.className = 'room-strip ' + (r.vacant ? 'vacant' : 'occupied');
+    el.innerHTML = '<i class="ti ti-' + (r.vacant ? 'check' : 'alert-circle') + '"></i>' + area + ' \u00b7 ' + r.note;
+  }
+  window.niBranchChanged = function() {
+    const b = document.getElementById('ni-branch').value;
+    document.getElementById('ni-area').innerHTML = roomsForBranch(b).map(a => '<option>' + a + '</option>').join('');
+    updateNiAvail();
+  };
+  window.niAreaChanged = function() { updateNiAvail(); };
   window.submitNewIssue = function() {
     const branch = document.getElementById('ni-branch').value;
     const id = nextFirId(branch);
@@ -534,15 +594,16 @@
   };
 
   window.bmAssignShow = function(id) {
-    const f = getFir(id); const r = ROOM_AVAIL[f.area] || {vacant:true,note:''};
-    const opts = state.laborOptions.filter(o => o.specialty === f.dept || o.specialty === 'GENERAL').map(o => '<option>'+o.name+' ('+o.specialty+')</option>').join('');
-    const fallback = state.laborOptions.map(o => '<option>'+o.name+' ('+o.specialty+')</option>').join('');
+    const f = getFir(id); const r = roomInfo(f.area); const isReassign = !!f.assignedLabor;
+    const laborList = state.laborOptions.filter(o => o.specialty === f.dept || o.specialty === 'GENERAL');
+    const useList = laborList.length ? laborList : state.laborOptions;
+    const opts = useList.map(o => '<option'+(f.assignedLabor===o.name?' selected':'')+'>'+o.name+' ('+o.specialty+')</option>').join('');
     const body = '<div class="muted" style="margin-bottom:10px;">'+f.desc+' \u00b7 '+f.area+' \u00b7 '+f.dept+'</div>' +
-      '<div class="room-strip '+(r.vacant?'vacant':'occupied')+'"><i class="ti ti-'+(r.vacant?'check':'alert-circle')+'"></i>'+r.note+'</div>' +
-      '<div class="form-row" style="margin-top:10px;"><label class="form-label">Assign labor</label><select class="form-input" id="bm-labor">'+(opts||fallback)+'</select></div>' +
-      '<div class="two-col"><div class="form-row"><label class="form-label">Date</label><input class="form-input" type="date" id="bm-date" value="'+todayStr()+'"></div><div class="form-row"><label class="form-label">Time window</label><input class="form-input" id="bm-time" value="10:00-12:00"></div></div>' +
-      '<div class="alert-card info"><i class="ti ti-info-circle"></i>This appears on the labor calendar (visible to Altamash and you).</div>';
-    showModal('Align labor \u2014 '+id, body, '<button class="btn-sm" onclick="closeModalBtn()">Cancel</button><button class="btn-sm primary" onclick="bmAssignConfirm(\''+id+'\')"><i class="ti ti-check"></i>Schedule</button>');
+      '<div class="room-strip '+(r.vacant?'vacant':'occupied')+'"><i class="ti ti-'+(r.vacant?'check':'alert-circle')+'"></i>'+f.area+' · '+r.note+'</div>' +
+      '<div class="form-row" style="margin-top:10px;"><label class="form-label">Assign labor</label><select class="form-input" id="bm-labor">'+opts+'</select></div>' +
+      '<div class="two-col"><div class="form-row"><label class="form-label">Date</label><input class="form-input" type="date" id="bm-date" value="'+(f.scheduledDate||todayStr())+'"></div><div class="form-row"><label class="form-label">Time window</label><input class="form-input" id="bm-time" value="'+(f.scheduledTime||'10:00-12:00')+'"></div></div>' +
+      '<div class="alert-card info"><i class="ti ti-info-circle"></i>Only you (Branch Manager) can align labor. This shows on the calendar; Altamash can view it but cannot edit it.</div>';
+    showModal((isReassign?'Re-align labor \u2014 ':'Align labor \u2014 ')+id, body, '<button class="btn-sm" onclick="closeModalBtn()">Cancel</button><button class="btn-sm primary" onclick="bmAssignConfirm(\''+id+'\')"><i class="ti ti-check"></i>'+(isReassign?'Update schedule':'Schedule')+'</button>');
   };
   window.bmAssignConfirm = function(id) {
     const f = getFir(id); f.assignedLabor=document.getElementById('bm-labor').value.split(' (')[0]; f.scheduledDate=document.getElementById('bm-date').value; f.scheduledTime=document.getElementById('bm-time').value; f.subStatus='assigned';
@@ -559,11 +620,103 @@
     notify('admin','\u23f0 Reminder #'+f.reminderCount+': '+id+' awaiting verify', true); audit('System','Reminder for '+id);
     saveState(); toast('Reminder sent'); render();
   };
+
+  /* ===== Feature 2: SLA escalation alarm (sound + forced BM response, final Admin decision) ===== */
+  let _audioCtx = null, _alarmTimer = null;
+  function beep() {
+    try {
+      _audioCtx = _audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (_audioCtx.state === 'suspended') _audioCtx.resume();
+      const o = _audioCtx.createOscillator(), g = _audioCtx.createGain();
+      o.connect(g); g.connect(_audioCtx.destination);
+      o.type = 'square'; o.frequency.value = 880; g.gain.value = 0.04;
+      o.start();
+      setTimeout(() => { try { o.frequency.value = 660; } catch(e){} }, 150);
+      setTimeout(() => { try { o.stop(); } catch(e){} }, 320);
+    } catch(e) {}
+  }
+  function startAlarm() { if (_alarmTimer) return; beep(); _alarmTimer = setInterval(beep, 3000); }
+  function stopAlarm() { if (_alarmTimer) { clearInterval(_alarmTimer); _alarmTimer = null; } }
+  function manageAlarm() {
+    const ring = state.currentRole === 'bm' && alarmFirs().length > 0;
+    if (ring) startAlarm(); else stopAlarm();
+  }
+  function escalReasonText(f) {
+    const e = f.escalation; if (!e) return '';
+    let t = '<div class="escal-info"><b>BM reason:</b> ' + (e.reason || '\u2014') + '<br><b>Promised resolution:</b> ' + (e.expectedDate || '\u2014');
+    if (e.expectedDate && todayStr() > e.expectedDate && isActiveFir(f)) t += ' <span class="sla-badge">timeline passed</span>';
+    if (e.history && e.history.length > 1) t += '<br><span class="muted">' + e.history.length + ' responses recorded</span>';
+    if (e.adminDecision) t += '<br><b>Admin decision:</b> ' + e.adminDecision;
+    return t + '</div>';
+  }
+
+  // BM enters reason + timeline (alarm keeps ringing until this is submitted)
+  window.bmEscalationRespond = function(id) {
+    const f = getFir(id); const e = f.escalation;
+    const reopened = e && (e.awaitingResponse || (e.expectedDate && todayStr() > e.expectedDate));
+    const minDate = todayStr();
+    const body = '<div class="escal-banner"><i class="ti ti-alarm"></i><div><b>' + f.id + '</b> \u00b7 ' + f.priority + ' priority is overdue (' + daysOpen(f) + ' days open, SLA ' + slaThreshold(f) + ' days). ' + (reopened ? 'Your previous timeline passed \u2014 record an update.' : 'A reason and a resolution timeline are required to stop the alarm.') + '</div></div>' +
+      '<div class="muted" style="margin-bottom:10px;">' + f.desc + ' \u00b7 ' + f.area + ' \u00b7 ' + branchBadge(f.branch) + ' ' + BRANCHES[f.branch].name + '</div>' +
+      (e && e.history && e.history.length ? '<div class="escal-info"><b>Previous responses</b>' + e.history.map(h => '<br>\u00b7 ' + fmtDate(h.at) + ' \u2014 "' + h.reason + '" (by ' + (h.expectedDate||'?') + ')').join('') + '</div>' : '') +
+      '<div class="form-row"><label class="form-label">Reason it is not yet resolved</label><textarea class="form-input" rows="3" id="esc-reason" placeholder="e.g. spare part on order, awaiting guest checkout...">' + '</textarea></div>' +
+      '<div class="form-row"><label class="form-label">Timeline required to resolve (date)</label><input class="form-input" type="date" id="esc-date" min="' + minDate + '" value="' + minDate + '"></div>' +
+      '<div class="alert-card info"><i class="ti ti-info-circle"></i>If it is still open after this date, the alarm rings again for a new update. Altamash makes the final call.</div>';
+    showModal('\u23f0 Escalation \u2014 ' + id, body, '<button class="btn-sm primary" onclick="bmEscalationSave(\'' + id + '\')"><i class="ti ti-check"></i>Record reason & timeline</button>');
+  };
+  window.bmEscalationSave = function(id) {
+    const f = getFir(id);
+    const reason = (document.getElementById('esc-reason').value || '').trim();
+    const date = document.getElementById('esc-date').value;
+    if (!reason) { toast('Enter a reason first'); return; }
+    if (!date) { toast('Enter a timeline date'); return; }
+    f.escalation = f.escalation || { history: [], level: 0 };
+    f.escalation.level = (f.escalation.level || 0) + 1;
+    f.escalation.reason = reason;
+    f.escalation.expectedDate = date;
+    f.escalation.acknowledgedAt = now();
+    f.escalation.awaitingResponse = false;
+    f.escalation.history.push({ at: now(), level: f.escalation.level, reason: reason, expectedDate: date });
+    audit('Hammad', 'Escalation response #' + f.escalation.level + ' for ' + id + ' (target ' + date + ')');
+    addActivity('Hammad responded to escalation ' + id);
+    notify('admin', '\ud83d\udcdd Hammad gave reason+timeline for overdue ' + id + ' (by ' + date + ')', true);
+    saveState(); closeModal(); toast('Recorded \u00b7 alarm stopped'); render();
+  };
+
+  // Admin final decision on an escalated issue
+  window.adminEscalationResolve = function(id) {
+    const f = getFir(id); f.status = 'done'; f.subStatus = null; f.verifiedAt = now();
+    f.doneApprovedByAdmin = 'Resolved by Altamash (final decision) \u00b7 ' + fmtDate(now());
+    f.duration = durationBetween(f.dateReported, f.verifiedAt);
+    if (f.escalation) f.escalation.adminDecision = 'Resolved (final) \u00b7 ' + fmtDate(now());
+    audit('Altamash', 'Final decision: resolved ' + id); addActivity('Altamash resolved escalated ' + id);
+    notify('bm', '\u2705 Altamash marked overdue ' + id + ' resolved (final)'); notify('reporter', 'Your ' + id + ' was resolved');
+    saveState(); closeModal(); toast('Marked resolved (final)'); render();
+  };
+  window.adminEscalationSendBack = function(id) {
+    const note = prompt('Why is this NOT resolved? (sent back to Hammad)', 'Work not satisfactory'); if (note === null) return;
+    const f = getFir(id);
+    f.escalation = f.escalation || { history: [], level: 0 };
+    f.escalation.awaitingResponse = true;
+    f.escalation.adminDecision = 'Sent back by Altamash \u00b7 ' + fmtDate(now()) + ' (' + note + ')';
+    if (f.subStatus === 'marked_done') { f.subStatus = 'assigned'; f.doneByBM = null; f.markedDoneAt = null; }
+    audit('Altamash', 'Final decision: sent back ' + id); addActivity('Altamash sent back escalated ' + id);
+    notify('bm', '\u26a0 Altamash sent ' + id + ' back \u2014 not resolved, respond again', true);
+    saveState(); closeModal(); toast('Sent back to Hammad'); render();
+  };
+  window.openEscalationDecision = function(id) {
+    const f = getFir(id);
+    const body = '<div class="muted" style="margin-bottom:10px;">' + f.desc + ' \u00b7 ' + f.area + ' \u00b7 ' + branchBadge(f.branch) + ' ' + BRANCHES[f.branch].name + ' \u00b7 ' + priorityBadge(f.priority) + '</div>' +
+      '<div class="escal-info"><b>' + daysOpen(f) + ' days open</b> (SLA ' + slaThreshold(f) + ' days for ' + f.priority + ')</div>' +
+      (f.escalation ? escalReasonText(f) : '<div class="alert-card warning" style="background:var(--color-background-warning);color:#633806;"><i class="ti ti-alert-triangle"></i>Branch Manager has not yet given a reason/timeline.</div>') +
+      renderFlowView(f, 'admin') +
+      '<div class="alert-card info"><i class="ti ti-info-circle"></i>Your decision is final.</div>';
+    showModal('Admin decision \u2014 ' + id, body, '<button class="btn-sm danger" onclick="adminEscalationSendBack(\'' + id + '\')"><i class="ti ti-arrow-back-up"></i>Not resolved \u00b7 send back</button><button class="btn-sm success" onclick="adminEscalationResolve(\'' + id + '\')"><i class="ti ti-check"></i>Resolve (final)</button>');
+  };
   window.adminEditFir = function(id) {
     const f = getFir(id);
     const body = '<div class="alert-card info"><i class="ti ti-info-circle"></i>As Admin (Altamash) you can edit any field. Changes are logged.</div>' +
       '<div class="two-col"><div class="form-row"><label class="form-label">Description</label><input class="form-input" id="e-desc" value="'+f.desc+'"></div><div class="form-row"><label class="form-label">Department</label><select class="form-input" id="e-dept"><option'+(f.dept==='PLUMBER'?' selected':'')+'>PLUMBER</option><option'+(f.dept==='ELECTRICIAN'?' selected':'')+'>ELECTRICIAN</option><option'+(f.dept==='CARPENTER'?' selected':'')+'>CARPENTER</option><option'+(f.dept==='HVAC'?' selected':'')+'>HVAC</option><option'+(f.dept==='PAINTER'?' selected':'')+'>PAINTER</option><option'+(f.dept==='IT'?' selected':'')+'>IT</option><option'+(f.dept==='GENERAL'?' selected':'')+'>GENERAL</option></select></div></div>' +
-      '<div class="two-col"><div class="form-row"><label class="form-label">Area</label><select class="form-input" id="e-area">'+Object.keys(ROOM_AVAIL).map(a => '<option'+(f.area===a?' selected':'')+'>'+a+'</option>').join('')+'</select></div><div class="form-row"><label class="form-label">Priority</label><select class="form-input" id="e-priority"><option'+(f.priority==='High'?' selected':'')+'>High</option><option'+(f.priority==='Medium'?' selected':'')+'>Medium</option><option'+(f.priority==='Low'?' selected':'')+'>Low</option></select></div></div>';
+      '<div class="two-col"><div class="form-row"><label class="form-label">Area</label><select class="form-input" id="e-area">'+roomsForBranch(f.branch).map(a => '<option'+(f.area===a?' selected':'')+'>'+a+'</option>').join('')+'</select></div><div class="form-row"><label class="form-label">Priority</label><select class="form-input" id="e-priority"><option'+(f.priority==='High'?' selected':'')+'>High</option><option'+(f.priority==='Medium'?' selected':'')+'>Medium</option><option'+(f.priority==='Low'?' selected':'')+'>Low</option></select></div></div>';
     showModal('Admin edit \u2014 '+id, body, '<button class="btn-sm" onclick="closeModalBtn()">Cancel</button><button class="btn-sm primary" onclick="adminEditSave(\''+id+'\')"><i class="ti ti-check"></i>Save</button>');
   };
   window.adminEditSave = function(id) {
@@ -581,7 +734,9 @@
   function renderCalendar(role) {
     const mn = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
     const monthLabel = mn[state.cal.month] + ' ' + state.cal.year;
-    let h = '<div class="page-title">Labor Calendar</div><div class="page-sub">' + (role === 'admin' ? 'Oversight view of all scheduled labor across branches' : 'Plan and view your labor schedule \u00b7 Altamash can see this too') + '</div>';
+    let h = '<div class="page-title">Labor Calendar</div><div class="page-sub">' + (role === 'admin' ? 'Oversight of all scheduled labor across branches \u2014 read-only' : 'Plan, align and reschedule your labor force') + '</div>';
+    if (role === 'bm') h += '<div class="alert-card info"><i class="ti ti-info-circle"></i>Tap any scheduled job to re-align labor or change its date/time. Only the Branch Manager can edit the calendar.</div>';
+    else h += '<div class="alert-card"><i class="ti ti-lock"></i>Read-only \u2014 labor alignment is managed by the Branch Manager. Altamash can watch but not change it.</div>';
     const upcoming = state.firs.filter(f => f.scheduledDate);
     const thisMonth = upcoming.filter(f => f.scheduledDate.startsWith(state.cal.year + '-' + String(state.cal.month).padStart(2,'0')));
     h += '<div class="kpi-grid"><div class="kpi"><div class="kpi-label">Scheduled this month</div><div class="kpi-val">' + thisMonth.length + '</div></div><div class="kpi"><div class="kpi-label">Today</div><div class="kpi-val warn">' + upcoming.filter(f => f.scheduledDate === todayStr()).length + '</div></div><div class="kpi"><div class="kpi-label">Awaiting verify</div><div class="kpi-val crit">' + state.firs.filter(f => f.subStatus === 'marked_done').length + '</div></div></div>';
@@ -624,6 +779,10 @@
       else if (f.subStatus === 'assigned') foot = '<button class="btn-sm" onclick="closeModalBtn()">Close</button><button class="btn-sm success" onclick="bmMarkDone(\''+id+'\'); closeModalBtn();"><i class="ti ti-check"></i>Mark done</button>';
       else if (f.subStatus === 'marked_done') foot = '<button class="btn-sm" onclick="closeModalBtn()">Close</button><button class="btn-sm primary" onclick="sendReminder(\''+id+'\'); closeModalBtn();"><i class="ti ti-bell"></i>Remind Altamash</button>';
     }
+    // Feature 1: BM can re-align/reschedule from the calendar; Feature 2: escalation actions
+    if (role === 'bm' && f.subStatus === 'assigned') foot += '<button class="btn-sm" onclick="bmAssignShow(\''+id+'\'); closeModalBtn();"><i class="ti ti-calendar-event"></i>Re-align / reschedule</button>';
+    if (role === 'bm' && isActiveFir(f) && daysOpen(f) >= slaThreshold(f)) foot += '<button class="btn-sm danger" onclick="bmEscalationRespond(\''+id+'\'); closeModalBtn();"><i class="ti ti-alarm"></i>Escalation response</button>';
+    if (role === 'admin' && isActiveFir(f) && daysOpen(f) >= slaThreshold(f)) foot += '<button class="btn-sm primary" onclick="openEscalationDecision(\''+id+'\'); closeModalBtn();"><i class="ti ti-gavel"></i>Final decision</button>';
     showModal(f.id + ' \u00b7 Flow', renderFlowView(f, role), foot);
   };
 
@@ -695,6 +854,29 @@
     return h;
   }
 
+  // Feature 2: escalations list (Admin = final decision; BM = respond with reason/timeline)
+  function renderEscalations(role) {
+    const all = escalationFirs();
+    const alarm = alarmFirs();
+    let h = '<div class="page-title">Escalations</div><div class="page-sub">' + (role === 'admin' ? 'Overdue issues — your decision is final' : 'Overdue issues — enter a reason and timeline to stop the alarm') + '</div>';
+    h += '<div class="report-summary"><div class="report-summary-item"><div class="report-summary-label">Overdue total</div><div class="report-summary-val crit">' + all.length + '</div></div>' +
+      '<div class="report-summary-item"><div class="report-summary-label">High SLA</div><div class="report-summary-val">4 days</div></div>' +
+      '<div class="report-summary-item"><div class="report-summary-label">Medium SLA</div><div class="report-summary-val">10 days</div></div>' +
+      '<div class="report-summary-item"><div class="report-summary-label">Low SLA</div><div class="report-summary-val">20 days</div></div></div>';
+    if (role === 'bm' && alarm.length) h += '<div class="escal-banner"><i class="ti ti-alarm"></i><div><b>' + alarm.length + ' issue' + (alarm.length>1?'s':'') + ' awaiting your response</b> — the alarm rings until you record a reason and resolution timeline.</div></div>';
+    if (!all.length) { h += '<div class="section-card"><div class="empty-state"><i class="ti ti-mood-smile"></i>No overdue issues. Everything is within SLA.</div></div>'; return h; }
+    all.forEach(f => {
+      const need = alarm.indexOf(f) > -1;
+      h += '<div class="issue-card' + (need ? ' urgent' : '') + '"><div class="issue-header"><span class="issue-id">' + f.id + '</span>' + branchBadge(f.branch) + priorityBadge(f.priority) + '<span class="sla-badge">' + daysOpen(f) + '/' + slaThreshold(f) + ' days</span></div><div class="issue-desc">' + f.desc + '</div><div class="issue-meta"><span><i class="ti ti-map-pin"></i>' + f.area + '</span> ' + roomAvailInline(f.area) + '<span><i class="ti ti-tool"></i>' + f.dept + '</span></div>';
+      h += (f.escalation ? escalReasonText(f) : '<div class="escal-info">No reason/timeline from the Branch Manager yet.</div>');
+      h += '<div class="action-row">';
+      if (role === 'bm') h += '<button class="btn-sm ' + (need ? 'danger' : '') + '" onclick="bmEscalationRespond(\'' + f.id + '\')"><i class="ti ti-alarm"></i>' + (need ? 'Respond now' : 'Update reason/timeline') + '</button>';
+      if (role === 'admin') h += '<button class="btn-sm success" onclick="adminEscalationResolve(\'' + f.id + '\')"><i class="ti ti-check"></i>Resolve (final)</button><button class="btn-sm danger" onclick="adminEscalationSendBack(\'' + f.id + '\')"><i class="ti ti-arrow-back-up"></i>Send back</button>';
+      h += '<button class="btn-sm" onclick="openFlowModal(\'' + f.id + '\', \'' + role + '\')">View flow</button></div></div>';
+    });
+    return h;
+  }
+
   const PAGES = {
     'admin/dashboard': () => {
       const pending = state.firs.filter(f => f.status === 'submitted').length;
@@ -723,7 +905,7 @@
       let h = '<div class="page-title">Approval Queue</div><div class="page-sub">'+list.length+' new issues</div>';
       h += '<div class="flow-strip"><span class="flow-step done">Reporter logged</span><span class="flow-arrow">\u203a</span><span class="flow-step active">You approve</span><span class="flow-arrow">\u203a</span><span class="flow-step">Hammad aligns labor</span><span class="flow-arrow">\u203a</span><span class="flow-step">Hammad marks done</span><span class="flow-arrow">\u203a</span><span class="flow-step">You verify</span></div>';
       if (!list.length) h += '<div class="section-card"><div class="empty-state"><i class="ti ti-check"></i>Nothing waiting.</div></div>';
-      else list.forEach(f => h += '<div class="issue-card"><div class="issue-header"><span class="issue-id">'+f.id+'</span>'+branchBadge(f.branch)+priorityBadge(f.priority)+'</div><div class="issue-desc">'+f.desc+'</div><div class="issue-meta"><span><i class="ti ti-map-pin"></i>'+f.area+'</span><span><i class="ti ti-tool"></i>'+f.dept+'</span><span><i class="ti ti-user"></i>'+f.reporter+'</span><span><i class="ti ti-clock"></i>'+fmtDate(f.dateReported)+'</span></div><div class="action-row"><button class="btn-sm success" onclick="adminApprove(\''+f.id+'\')"><i class="ti ti-check"></i>Approve</button><button class="btn-sm danger" onclick="adminReject(\''+f.id+'\')"><i class="ti ti-x"></i>Reject</button><button class="btn-sm" onclick="openFlowModal(\''+f.id+'\', \'admin\')">View flow</button></div></div>');
+      else list.forEach(f => h += '<div class="issue-card"><div class="issue-header"><span class="issue-id">'+f.id+'</span>'+branchBadge(f.branch)+priorityBadge(f.priority)+'</div><div class="issue-desc">'+f.desc+'</div><div class="issue-meta"><span><i class="ti ti-map-pin"></i>'+f.area+'</span> '+roomAvailInline(f.area)+'<span><i class="ti ti-tool"></i>'+f.dept+'</span><span><i class="ti ti-user"></i>'+f.reporter+'</span><span><i class="ti ti-clock"></i>'+fmtDate(f.dateReported)+'</span></div><div class="action-row"><button class="btn-sm success" onclick="adminApprove(\''+f.id+'\')"><i class="ti ti-check"></i>Approve</button><button class="btn-sm danger" onclick="adminReject(\''+f.id+'\')"><i class="ti ti-x"></i>Reject</button><button class="btn-sm" onclick="openFlowModal(\''+f.id+'\', \'admin\')">View flow</button></div></div>');
       return h;
     },
     'admin/verify': () => {
@@ -752,6 +934,7 @@
       h += '</div>'; return h;
     },
     'admin/labor-calendar': () => renderCalendar('admin'),
+    'admin/escalations': () => renderEscalations('admin'),
     'admin/reports': () => renderReports('admin'),
     'admin/activity': () => {
       let h = '<div class="page-title">Activity & Audit Log</div><div class="page-sub">Every action recorded</div><div class="section-card">';
@@ -764,6 +947,15 @@
       const awaiting = state.firs.filter(f => f.subStatus === 'marked_done');
       let h = '<div class="page-title">Welcome, Hammad</div><div class="page-sub">Align labor, execute, push to Altamash</div>';
       h += '<div class="kpi-grid"><div class="kpi"><div class="kpi-label">To Assign</div><div class="kpi-val warn">'+toAssign.length+'</div></div><div class="kpi"><div class="kpi-label">In Progress</div><div class="kpi-val">'+inProgress.length+'</div></div><div class="kpi"><div class="kpi-label">Awaiting Verify</div><div class="kpi-val crit">'+awaiting.length+'</div></div></div>';
+      const escAlarm = alarmFirs(); const escAll = escalationFirs();
+      if (escAlarm.length) h += '<div class="escal-banner"><i class="ti ti-alarm"></i><div><b>'+escAlarm.length+' overdue issue'+(escAlarm.length>1?'s':'')+' need your response NOW</b> — the alarm keeps ringing until you enter a reason and a resolution timeline for each.</div></div>';
+      if (escAll.length) {
+        h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-alarm"></i>Overdue / escalated</span><span class="badge b-crit">'+escAll.length+'</span></div>';
+        escAll.forEach(f => { const need = escAlarm.indexOf(f) > -1;
+          h += '<div class="issue-card'+(need?' urgent':'')+'"><div class="issue-header"><span class="issue-id">'+f.id+'</span>'+branchBadge(f.branch)+priorityBadge(f.priority)+'<span class="sla-badge">'+daysOpen(f)+'/'+slaThreshold(f)+'d open</span></div><div class="issue-desc">'+f.desc+'</div><div class="issue-meta"><span><i class="ti ti-map-pin"></i>'+f.area+'</span> '+roomAvailInline(f.area)+'</div>'+(f.escalation?escalReasonText(f):'')+'<div class="action-row"><button class="btn-sm '+(need?'danger':'')+'" onclick="bmEscalationRespond(\''+f.id+'\')"><i class="ti ti-alarm"></i>'+(need?'Respond now':'Update reason/timeline')+'</button><button class="btn-sm" onclick="openFlowModal(\''+f.id+'\', \'bm\')">View flow</button></div></div>';
+        });
+        h += '</div>';
+      }
       if (awaiting.length) {
         h += '<div class="reminder-banner"><i class="ti ti-bell"></i><div><b>Altamash verification pending for '+awaiting.length+' issue'+(awaiting.length>1?'s':'')+'</b> \u2014 these won\'t close until verified.</div></div>';
         h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-clock-hour-4"></i>Awaiting Altamash verification</span></div>';
@@ -810,6 +1002,7 @@
       return h;
     },
     'bm/labor-calendar': () => renderCalendar('bm'),
+    'bm/escalations': () => renderEscalations('bm'),
     'bm/reports': () => renderReports('bm'),
     'reporter/new': () => {
       let h = '<div class="page-title">Report New Issue</div><div class="page-sub">Welcome, Rashid \u00b7 Log what you found</div>';
@@ -838,12 +1031,15 @@
     const toAssign = state.firs.filter(f => f.subStatus === 'approved').length;
     const awaiting = state.firs.filter(f => f.subStatus === 'marked_done').length;
     const active = state.firs.filter(f => f.status !== 'done' && f.status !== 'rejected').length;
+    const overdue = escalationFirs().length;
+    const bmAlarm = alarmFirs().length;
     return {
       admin: [
         { icon:'ti-layout-dashboard', label:'Dashboard', page:'admin/dashboard' },
         { icon:'ti-inbox', label:'Approval Queue', page:'admin/approve', count: pending },
         { icon:'ti-checks', label:'Verification Queue', page:'admin/verify', count: toVerify },
         { icon:'ti-route', label:'Status Tracker', page:'admin/status-tracker', count: active },
+        { icon:'ti-alarm', label:'Escalations', page:'admin/escalations', count: overdue },
         { icon:'ti-list', label:'All Issues', page:'admin/all-issues' },
         { icon:'ti-calendar', label:'Labor Calendar', page:'admin/labor-calendar' },
         { icon:'ti-chart-bar', label:'Reports', page:'admin/reports' },
@@ -854,6 +1050,7 @@
         { icon:'ti-inbox', label:'Approved Tasks', page:'bm/tasks', count: toAssign },
         { icon:'ti-tool', label:'In Progress', page:'bm/in-progress' },
         { icon:'ti-clock-hour-4', label:'Awaiting Verify', page:'bm/awaiting-verify', count: awaiting },
+        { icon:'ti-alarm', label:'Escalations', page:'bm/escalations', count: bmAlarm },
         { icon:'ti-calendar', label:'Labor Calendar', page:'bm/labor-calendar' },
         { icon:'ti-chart-bar', label:'Reports', page:'bm/reports' }
       ],
@@ -890,6 +1087,11 @@
     document.getElementById('header-sub').textContent = 'Maintenance Portal \u00b7 ' + USERS[state.currentRole].name;
     const u = state.notifications.filter(n => !n.read).length;
     document.getElementById('notif-dot').style.display = u > 0 ? 'block' : 'none';
+    manageAlarm();
+    if (state.currentRole === 'bm' && !document.getElementById('modal-host').innerHTML) {
+      const a = alarmFirs();
+      if (a.length) bmEscalationRespond(a[0].id);
+    }
   }
   function render() { renderRoleSwitcher(); renderSidebar(); renderMain(); }
 
