@@ -220,6 +220,11 @@
     .avail-state { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
     .avail-state.on { background: #EAF3DE; color: #27500A; }
     .avail-state.off { background: #FCEBEB; color: #791F1F; }
+    .dept-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .dept-name-wrap { display: flex; align-items: center; gap: 8px; flex: 1; }
+    .dept-name-wrap > i { color: var(--color-text-secondary); }
+    .dept-name-input { font-weight: 600; text-transform: uppercase; }
+    .dept-stat { font-size: 11px; color: var(--color-text-secondary); white-space: nowrap; }
 
     .report-priority-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
     .priority-section { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; }
@@ -339,6 +344,23 @@
   function roomInfo(area) { return ROOM_AVAIL[area] || { vacant:true, note:'No availability data', branch:'ALL' }; }
   // Feature 4: compact availability badge shown beside an issue's room
   function roomAvailInline(area) { const r = roomInfo(area); return '<span class="room-inline '+(r.vacant?'vacant':'occupied')+'" title="'+area+' \u00b7 '+r.note+'"><i class="ti ti-'+(r.vacant?'door':'door-off')+'"></i>'+(r.vacant?'Available':'Occupied')+' \u00b7 '+r.note+'</span>'; }
+
+  // New feature: Admin-managed departments + automatic categorization of an issue from its description
+  function deptList() { return (state.departments && state.departments.length) ? state.departments : [{ name:'GENERAL', keywords:[] }]; }
+  function deptNames() { return deptList().map(d => d.name); }
+  function deptOptionsHtml(selected) { return deptNames().map(n => '<option'+(selected===n?' selected':'')+'>'+n+'</option>').join(''); }
+  function autoAssignDept(desc) {
+    const t = (desc || '').toLowerCase();
+    let best = 'GENERAL', bestScore = 0;
+    deptList().forEach(d => {
+      if (!d.keywords || !d.keywords.length) return;
+      let score = 0;
+      d.keywords.forEach(k => { if (k && t.indexOf(k.toLowerCase()) > -1) score++; });
+      if (score > bestScore) { bestScore = score; best = d.name; }
+    });
+    if (deptNames().indexOf(best) < 0) best = deptNames()[0] || 'GENERAL';
+    return best;
+  }
 
   // Feature 2: SLA thresholds (days since reported) per priority before the BM escalation alarm fires
   const SLA_DAYS = { High: 4, Medium: 10, Low: 20 };
@@ -464,7 +486,16 @@
       { name:'Pak Painters', specialty:'PAINTER' },
       { name:'Internal \u2014 Jamil Kumar', specialty:'GENERAL' }
     ],
-    laborOff: {}
+    laborOff: {},
+    departments: [
+      { name:'PLUMBER', keywords:['leak','pipe','tap','faucet','drain','water','toilet','flush','sink','sewage','geyser','boiler','plumb'] },
+      { name:'ELECTRICIAN', keywords:['light','power','socket','switch','wiring','electric','bulb','fuse','breaker','outlet','voltage','short circuit'] },
+      { name:'CARPENTER', keywords:['door','wood','furniture','cabinet','hinge','lock','drawer','table','chair','frame','wardrobe'] },
+      { name:'HVAC', keywords:['ac','air condition','cooling','heating','thermostat','ventilation','chiller','fan','duct','temperature','heater'] },
+      { name:'PAINTER', keywords:['paint','wall','stain','peel','colour','color','primer','damp','patch'] },
+      { name:'IT', keywords:['wifi','wi-fi','network','computer','internet','printer','system','router','cctv','camera','software','login','tv','phone'] },
+      { name:'GENERAL', keywords:[] }
+    ]
   };
 
   let state;
@@ -474,6 +505,7 @@
       state = r ? JSON.parse(r) : JSON.parse(JSON.stringify(DEFAULT_STATE));
     } catch(e) { state = JSON.parse(JSON.stringify(DEFAULT_STATE)); }
     if (!state.laborOff) state.laborOff = {};
+    if (!state.departments || !state.departments.length) state.departments = JSON.parse(JSON.stringify(DEFAULT_STATE.departments));
   }
   function saveState() { try { localStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch(e) {} }
   function resetState() { state = JSON.parse(JSON.stringify(DEFAULT_STATE)); saveState(); render(); toast('Reset'); }
@@ -548,13 +580,24 @@
     const body = '<div class="form-row"><label class="form-label">Branch</label><select class="form-input" id="ni-branch" onchange="niBranchChanged()">' + Object.keys(BRANCHES).map(b => '<option value="' + b + '">' + b + ' \u2014 ' + BRANCHES[b].name + '</option>').join('') + '</select></div>' +
       '<div class="form-row"><label class="form-label">Area / Location <span class="muted">(rooms of selected branch)</span></label><select class="form-input" id="ni-area" onchange="niAreaChanged()">' + roomsForBranch(firstBranch).map(a => '<option>' + a + '</option>').join('') + '</select></div>' +
       '<div id="ni-avail" class="room-strip"></div>' +
-      '<div class="two-col"><div class="form-row"><label class="form-label">Department</label><select class="form-input" id="ni-dept"><option>PLUMBER</option><option>ELECTRICIAN</option><option>CARPENTER</option><option>HVAC</option><option>PAINTER</option><option>IT</option><option>GENERAL</option></select></div>' +
+      '<div class="form-row"><label class="form-label">FIR Description</label><textarea class="form-input" rows="3" id="ni-desc" placeholder="Describe the issue clearly... (department is auto-detected)" oninput="niAutoDept()"></textarea></div>' +
+      '<div class="two-col"><div class="form-row"><label class="form-label">Department <span class="muted">(auto-assigned)</span></label><select class="form-input" id="ni-dept" onchange="window._niDeptManual=true">'+deptOptionsHtml()+'</select></div>' +
       '<div class="form-row"><label class="form-label">Priority</label><select class="form-input" id="ni-priority"><option>High</option><option selected>Medium</option><option>Low</option></select></div></div>' +
-      '<div class="form-row"><label class="form-label">FIR Description</label><textarea class="form-input" rows="3" id="ni-desc" placeholder="Describe the issue clearly..."></textarea></div>' +
+      '<div id="ni-dept-hint" class="escal-info" style="display:none;"></div>' +
       '<div class="form-row"><label class="form-label">Photo</label><div class="photo-box" onclick="this.classList.add(\'captured\'); this.innerHTML=\'<i class=ti ti-check></i> Captured\'"><i class="ti ti-camera" style="font-size:22px;"></i><div>Tap to capture</div></div></div>' +
       '<div class="alert-card info"><i class="ti ti-info-circle"></i>This will be sent to Altamash (Admin) for approval first.</div>';
+    window._niDeptManual = false;
     showModal('Report new issue', body, '<button class="btn-sm" onclick="closeModalBtn()">Cancel</button><button class="btn-sm primary" onclick="submitNewIssue()"><i class="ti ti-send"></i>Submit to Admin</button>');
     updateNiAvail();
+  };
+  window.niAutoDept = function() {
+    const desc = document.getElementById('ni-desc').value;
+    const hint = document.getElementById('ni-dept-hint');
+    if (window._niDeptManual) { if (hint) { hint.style.display = 'block'; hint.innerHTML = '<i class="ti ti-hand-stop"></i> Department set manually.'; } return; }
+    if (!desc.trim()) { if (hint) hint.style.display = 'none'; return; }
+    const dept = autoAssignDept(desc);
+    const sel = document.getElementById('ni-dept'); if (sel) sel.value = dept;
+    if (hint) { hint.style.display = 'block'; hint.innerHTML = '<i class="ti ti-wand"></i> Auto-assigned to <b>' + dept + '</b> from the description — change it above if needed.'; }
   };
   function updateNiAvail() {
     const el = document.getElementById('ni-avail'); if (!el) return;
@@ -571,9 +614,11 @@
   window.submitNewIssue = function() {
     const branch = document.getElementById('ni-branch').value;
     const id = nextFirId(branch);
-    const fir = { id, branch, desc:document.getElementById('ni-desc').value.trim()||'New issue', area:document.getElementById('ni-area').value, dept:document.getElementById('ni-dept').value, priority:document.getElementById('ni-priority').value, status:'submitted', reporter:'Rashid Hussain', dateReported:now(), verificationByAdmin:null, doneByBM:null, doneApprovedByAdmin:null, duration:null };
+    const desc = document.getElementById('ni-desc').value.trim() || 'New issue';
+    const dept = window._niDeptManual ? document.getElementById('ni-dept').value : autoAssignDept(desc);
+    const fir = { id, branch, desc:desc, area:document.getElementById('ni-area').value, dept:dept, priority:document.getElementById('ni-priority').value, status:'submitted', reporter:'Rashid Hussain', dateReported:now(), verificationByAdmin:null, doneByBM:null, doneApprovedByAdmin:null, duration:null };
     state.firs.unshift(fir);
-    addActivity('Reporter created ' + id); audit('Rashid', 'Created ' + id);
+    addActivity('Reporter created ' + id + ' — auto-assigned to ' + dept); audit('Rashid', 'Created ' + id + ' (dept ' + dept + ')');
     notify('admin', 'New ' + id + ' awaiting approval');
     saveState(); closeModal(); toast(id + ' submitted'); render();
   };
@@ -729,7 +774,7 @@
   window.adminEditFir = function(id) {
     const f = getFir(id);
     const body = '<div class="alert-card info"><i class="ti ti-info-circle"></i>As Admin (Altamash) you can edit any field. Changes are logged.</div>' +
-      '<div class="two-col"><div class="form-row"><label class="form-label">Description</label><input class="form-input" id="e-desc" value="'+f.desc+'"></div><div class="form-row"><label class="form-label">Department</label><select class="form-input" id="e-dept"><option'+(f.dept==='PLUMBER'?' selected':'')+'>PLUMBER</option><option'+(f.dept==='ELECTRICIAN'?' selected':'')+'>ELECTRICIAN</option><option'+(f.dept==='CARPENTER'?' selected':'')+'>CARPENTER</option><option'+(f.dept==='HVAC'?' selected':'')+'>HVAC</option><option'+(f.dept==='PAINTER'?' selected':'')+'>PAINTER</option><option'+(f.dept==='IT'?' selected':'')+'>IT</option><option'+(f.dept==='GENERAL'?' selected':'')+'>GENERAL</option></select></div></div>' +
+      '<div class="two-col"><div class="form-row"><label class="form-label">Description</label><input class="form-input" id="e-desc" value="'+f.desc+'"></div><div class="form-row"><label class="form-label">Department</label><select class="form-input" id="e-dept">'+deptOptionsHtml(f.dept)+'</select></div></div>' +
       '<div class="two-col"><div class="form-row"><label class="form-label">Area</label><select class="form-input" id="e-area">'+roomsForBranch(f.branch).map(a => '<option'+(f.area===a?' selected':'')+'>'+a+'</option>').join('')+'</select></div><div class="form-row"><label class="form-label">Priority</label><select class="form-input" id="e-priority"><option'+(f.priority==='High'?' selected':'')+'>High</option><option'+(f.priority==='Medium'?' selected':'')+'>Medium</option><option'+(f.priority==='Low'?' selected':'')+'>Low</option></select></div></div>';
     showModal('Admin edit \u2014 '+id, body, '<button class="btn-sm" onclick="closeModalBtn()">Cancel</button><button class="btn-sm primary" onclick="adminEditSave(\''+id+'\')"><i class="ti ti-check"></i>Save</button>');
   };
@@ -941,6 +986,62 @@
     return h;
   }
 
+  // New feature: Admin manages departments; system auto-assigns issues by keyword
+  function deptIssueCount(name) { return state.firs.filter(f => f.dept === name && isActiveFir(f)).length; }
+  function renderDepartments() {
+    let h = '<div class="page-title">Departments</div><div class="page-sub">Add, edit or remove departments · issues are auto-assigned by matching keywords to the description</div>';
+    h += '<div class="alert-card info"><i class="ti ti-wand"></i>When a reporter logs an issue, the system reads the description and assigns the department whose keywords match best. Edit the keywords below to tune it. <b>GENERAL</b> is the fallback when nothing matches.</div>';
+    state.departments.forEach((d, i) => {
+      const active = deptIssueCount(d.name);
+      const labor = state.laborOptions.filter(o => o.specialty === d.name).length;
+      h += '<div class="section-card"><div class="dept-head"><div class="dept-name-wrap"><i class="ti ti-tool"></i><input class="form-input dept-name-input" id="dep-name-' + i + '" value="' + d.name + '"></div><span class="dept-stat">' + active + ' active · ' + labor + ' labor</span></div>' +
+        '<div class="form-row" style="margin-top:8px;"><label class="form-label">Auto-assign keywords <span class="muted">(comma-separated)</span></label><textarea class="form-input" rows="2" id="dep-kw-' + i + '" placeholder="e.g. leak, pipe, tap">' + (d.keywords || []).join(', ') + '</textarea></div>' +
+        '<div class="action-row"><button class="btn-sm primary" onclick="adminSaveDept(' + i + ')"><i class="ti ti-check"></i>Save</button>' +
+        '<button class="btn-sm danger" onclick="adminRemoveDept(' + i + ')"><i class="ti ti-trash"></i>Remove</button></div></div>';
+    });
+    h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-plus"></i>Add a new department</span></div>' +
+      '<div class="form-row"><label class="form-label">Department name</label><input class="form-input" id="dep-new-name" placeholder="e.g. LANDSCAPING"></div>' +
+      '<div class="form-row"><label class="form-label">Auto-assign keywords <span class="muted">(comma-separated)</span></label><textarea class="form-input" rows="2" id="dep-new-kw" placeholder="e.g. garden, lawn, plants, hedge"></textarea></div>' +
+      '<div class="action-row"><button class="btn-sm primary" onclick="adminAddDept()"><i class="ti ti-plus"></i>Add department</button></div></div>';
+    return h;
+  }
+  function parseKeywords(s) { return (s || '').split(',').map(k => k.trim().toLowerCase()).filter(k => k.length); }
+  window.adminSaveDept = function(i) {
+    const d = state.departments[i]; if (!d) return;
+    const oldName = d.name;
+    const newName = (document.getElementById('dep-name-' + i).value || '').trim().toUpperCase();
+    const kw = parseKeywords(document.getElementById('dep-kw-' + i).value);
+    if (!newName) { toast('Department name cannot be empty'); return; }
+    if (newName !== oldName && deptNames().indexOf(newName) > -1) { toast('A department with that name already exists'); return; }
+    d.name = newName; d.keywords = kw;
+    if (newName !== oldName) {
+      state.firs.forEach(f => { if (f.dept === oldName) f.dept = newName; });
+      state.laborOptions.forEach(o => { if (o.specialty === oldName) o.specialty = newName; });
+    }
+    audit('Altamash', 'Saved department ' + newName + (newName !== oldName ? ' (renamed from ' + oldName + ')' : '') + ' · ' + kw.length + ' keywords');
+    addActivity('Altamash updated department ' + newName);
+    saveState(); toast('Department saved'); render();
+  };
+  window.adminAddDept = function() {
+    const name = (document.getElementById('dep-new-name').value || '').trim().toUpperCase();
+    const kw = parseKeywords(document.getElementById('dep-new-kw').value);
+    if (!name) { toast('Enter a department name'); return; }
+    if (deptNames().indexOf(name) > -1) { toast('That department already exists'); return; }
+    state.departments.push({ name: name, keywords: kw });
+    audit('Altamash', 'Added department ' + name); addActivity('Altamash added department ' + name);
+    saveState(); toast('Department added'); render();
+  };
+  window.adminRemoveDept = function(i) {
+    const d = state.departments[i]; if (!d) return;
+    if (state.departments.length <= 1) { toast('At least one department is required'); return; }
+    const active = deptIssueCount(d.name);
+    const msg = active ? 'Remove "' + d.name + '"? ' + active + ' active issue(s) keep this label but new issues can no longer be auto-assigned to it.' : 'Remove department "' + d.name + '"?';
+    if (!confirm(msg)) return;
+    state.departments.splice(i, 1);
+    audit('Altamash', 'Removed department ' + d.name); addActivity('Altamash removed department ' + d.name);
+    saveState(); toast('Department removed'); render();
+  };
+
   const PAGES = {
     'admin/dashboard': () => {
       const pending = state.firs.filter(f => f.status === 'submitted').length;
@@ -998,6 +1099,7 @@
       h += '</div>'; return h;
     },
     'admin/labor-calendar': () => renderCalendar('admin'),
+    'admin/departments': () => renderDepartments(),
     'admin/escalations': () => renderEscalations('admin'),
     'admin/reports': () => renderReports('admin'),
     'admin/activity': () => {
@@ -1106,6 +1208,7 @@
         { icon:'ti-alarm', label:'Escalations', page:'admin/escalations', count: overdue },
         { icon:'ti-list', label:'All Issues', page:'admin/all-issues' },
         { icon:'ti-calendar', label:'Labor Calendar', page:'admin/labor-calendar' },
+        { icon:'ti-building-warehouse', label:'Departments', page:'admin/departments' },
         { icon:'ti-chart-bar', label:'Reports', page:'admin/reports' },
         { icon:'ti-shield-check', label:'Activity Log', page:'admin/activity' }
       ],
