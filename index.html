@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hamsun Hospitality — Maintenance Portal</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+  <style>
+    :root {
+      --color-background-primary: #ffffff;
+      --color-background-secondary: #f5f5f4;
+      --color-background-tertiary: #faf9f7;
+      --color-background-info: #E6F1FB;
+      --color-background-warning: #FAEEDA;
+      --color-background-danger: #FCEBEB;
+      --color-background-success: #EAF3DE;
+      --color-text-primary: #1a1a1a;
+      --color-text-secondary: #6b6b6b;
+      --color-text-info: #0C447C;
+      --color-text-warning: #633806;
+      --color-text-danger: #791F1F;
+      --color-text-success: #27500A;
+      --color-border-tertiary: #e0e0e0;
+      --color-border-info: #185FA5;
+      --color-border-warning: #EF9F27;
+      --color-border-danger: #E24B4A;
+      --color-border-success: #639922;
+      --color-border-secondary: #cccccc;
+      --border-radius-md: 6px;
+      --border-radius-lg: 10px;
+      --font-mono: ui-monospace, "SF Mono", Monaco, "Cascadia Mono", "Roboto Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #ebe9e4;
+      color: var(--color-text-primary);
+      min-height: 100vh;
+    }
+    .page-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .portal-wrap { background: var(--color-background-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; border: 0.5px solid var(--color-border-tertiary); position: relative; }
+    .portal-header { background: var(--color-background-primary); padding: 12px 16px; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; justify-content: space-between; }
+    .portal-brand { display: flex; align-items: center; gap: 10px; }
+    .brand-logo { width: 32px; height: 32px; border-radius: 8px; background: var(--color-background-info); color: var(--color-text-info); display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 14px; }
+    .brand-name { font-weight: 500; font-size: 15px; }
+    .brand-sub { font-size: 12px; color: var(--color-text-secondary); }
+    .toolbar { display: flex; gap: 8px; align-items: center; }
+    .icon-btn { width: 30px; height: 30px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-tertiary); background: var(--color-background-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; }
+    .icon-btn:hover { background: var(--color-background-secondary); }
+    .notif-dot { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: #E24B4A; }
+    .role-switcher { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 16px; background: var(--color-background-secondary); border-bottom: 0.5px solid var(--color-border-tertiary); }
+    .role-btn { padding: 6px 14px; border: 0.5px solid var(--color-border-tertiary); background: var(--color-background-primary); border-radius: var(--border-radius-md); font-size: 12px; cursor: pointer; color: var(--color-text-secondary); display: flex; align-items: center; gap: 6px; }
+    .role-btn:hover { background: var(--color-background-secondary); }
+    .role-btn.active { background: var(--color-background-info); color: var(--color-text-info); border-color: var(--color-border-info); font-weight: 500; }
+    .portal-body { display: flex; min-height: 600px; }
+    .sidebar { width: 200px; background: var(--color-background-primary); border-right: 0.5px solid var(--color-border-tertiary); padding: 12px 8px; flex-shrink: 0; }
+    .user-card { padding: 10px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); margin-bottom: 12px; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--color-background-info); color: var(--color-text-info); display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 12px; margin-bottom: 6px; }
+    .user-name { font-size: 13px; font-weight: 500; }
+    .user-role { font-size: 11px; color: var(--color-text-secondary); }
+    .nav-item { padding: 8px 10px; font-size: 13px; color: var(--color-text-secondary); border-radius: var(--border-radius-md); cursor: pointer; display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+    .nav-item:hover { background: var(--color-background-secondary); color: var(--color-text-primary); }
+    .nav-item.active { background: var(--color-background-info); color: var(--color-text-info); font-weight: 500; }
+    .nav-item i { font-size: 16px; }
+    .nav-count { margin-left: auto; background: #FCEBEB; color: #791F1F; font-size: 10px; padding: 1px 7px; border-radius: 10px; font-weight: 500; }
+    .main-area { flex: 1; padding: 16px; overflow: auto; min-width: 0; }
+    .page-title { font-size: 18px; font-weight: 500; margin: 0 0 4px; }
+    .page-sub { font-size: 12px; color: var(--color-text-secondary); margin: 0 0 14px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 14px; }
+    .kpi { background: var(--color-background-primary); border-radius: var(--border-radius-md); padding: 10px 12px; border: 0.5px solid var(--color-border-tertiary); }
+    .kpi-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 3px; }
+    .kpi-val { font-size: 18px; font-weight: 500; }
+    .kpi-val.crit { color: var(--color-text-danger); }
+    .kpi-val.ok { color: var(--color-text-success); }
+    .kpi-val.warn { color: var(--color-text-warning); }
+    .section-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 12px 14px; margin-bottom: 12px; }
+    .section-title { font-size: 14px; font-weight: 500; margin: 0 0 10px; display: flex; align-items: center; gap: 6px; justify-content: space-between; }
+    .section-title-left { display: flex; align-items: center; gap: 6px; }
+    .section-title i { font-size: 16px; color: var(--color-text-secondary); }
+    .badge { font-size: 10px; padding: 2px 7px; border-radius: var(--border-radius-md); font-weight: 500; white-space: nowrap; }
+    .b-crit { background: #FCEBEB; color: #791F1F; }
+    .b-high { background: #FAEEDA; color: #633806; }
+    .b-med { background: #E6F1FB; color: #0C447C; }
+    .b-low { background: #F1EFE8; color: #444441; }
+    .b-done { background: #EAF3DE; color: #27500A; }
+    .b-prog { background: #EEEDFE; color: #3C3489; }
+    .b-wait { background: #F1EFE8; color: #444441; }
+    .b-pending-verify { background: #FBEAF0; color: #72243E; }
+    .b-branch-fsl { background: #E6F1FB; color: #0C447C; }
+    .b-branch-clf { background: #F4ECD8; color: #633806; }
+    .b-branch-ext { background: #EEEDFE; color: #3C3489; }
+    .action-row { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+    .btn-sm { font-size: 11px; padding: 6px 12px; border: 0.5px solid var(--color-border-tertiary); background: var(--color-background-primary); border-radius: var(--border-radius-md); cursor: pointer; display: flex; align-items: center; gap: 5px; font-family: inherit; color: inherit; }
+    .btn-sm:hover { background: var(--color-background-secondary); }
+    .btn-sm.primary { background: var(--color-background-info); color: var(--color-text-info); border-color: var(--color-border-info); }
+    .btn-sm.danger { background: var(--color-background-danger); color: var(--color-text-danger); border-color: var(--color-border-danger); }
+    .btn-sm.success { background: var(--color-background-success); color: var(--color-text-success); border-color: var(--color-border-success); }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .alert-card { background: var(--color-background-warning); border-left: 3px solid var(--color-border-warning); padding: 8px 10px; border-radius: var(--border-radius-md); font-size: 12px; color: #633806; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .alert-card.danger { background: var(--color-background-danger); border-left-color: var(--color-border-danger); color: #791F1F; }
+    .alert-card.info { background: var(--color-background-info); border-left-color: var(--color-border-info); color: #0C447C; }
+    .alert-card.success { background: var(--color-background-success); border-left-color: var(--color-border-success); color: #27500A; }
+    .form-row { margin-bottom: 10px; }
+    .form-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 4px; display: block; }
+    .form-input { width: 100%; padding: 7px 10px; font-size: 12px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); background: var(--color-background-primary); box-sizing: border-box; font-family: inherit; }
+    .modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 10; padding: 20px; }
+    .modal { background: var(--color-background-primary); border-radius: var(--border-radius-lg); max-width: 640px; width: 100%; max-height: 90%; overflow: auto; border: 0.5px solid var(--color-border-tertiary); }
+    .modal-head { padding: 12px 16px; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { font-size: 15px; font-weight: 500; }
+    .modal-body { padding: 14px 16px; }
+    .modal-foot { padding: 10px 16px; border-top: 0.5px solid var(--color-border-tertiary); display: flex; gap: 8px; justify-content: flex-end; }
+    .toast { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--color-text-primary); color: var(--color-background-primary); padding: 10px 16px; border-radius: var(--border-radius-md); font-size: 12px; z-index: 20; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 8px; }
+    .muted { color: var(--color-text-secondary); font-size: 11px; }
+    .photo-box { background: var(--color-background-secondary); border: 1px dashed var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 16px; text-align: center; font-size: 12px; color: var(--color-text-secondary); cursor: pointer; }
+    .photo-box:hover { border-color: var(--color-border-info); color: var(--color-text-info); }
+    .photo-box.captured { background: var(--color-background-info); color: var(--color-text-info); border-style: solid; border-color: var(--color-border-info); }
+    .empty-state { text-align: center; padding: 30px 20px; color: var(--color-text-secondary); font-size: 13px; }
+    .empty-state i { font-size: 32px; display: block; margin-bottom: 8px; }
+    .notif-panel { position: absolute; top: 60px; right: 16px; width: 300px; background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); box-shadow: 0 4px 16px rgba(0,0,0,0.08); z-index: 15; max-height: 380px; overflow: auto; }
+    .notif-item { padding: 10px 12px; border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 12px; }
+    .notif-item.urgent { background: #FCEBEB; }
+    .notif-time { font-size: 10px; color: var(--color-text-secondary); margin-top: 3px; }
+    .compact-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 12px; align-items: center; }
+    .compact-row:last-child { border-bottom: none; }
+    .stat-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 12px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+    .stat-row:last-child { border-bottom: none; }
+
+    .issue-card { padding: 12px 14px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); margin-bottom: 8px; background: var(--color-background-primary); }
+    .issue-card.urgent { border-left: 3px solid #E24B4A; }
+    .issue-card.reminder { border-left: 3px solid #EF9F27; background: #FFF8EC; }
+    .issue-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; gap: 8px; flex-wrap: wrap; }
+    .issue-id { font-family: var(--font-mono); font-size: 11px; color: var(--color-text-secondary); font-weight: 500; }
+    .issue-desc { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+    .issue-meta { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 8px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .issue-meta span { display: inline-flex; align-items: center; gap: 4px; }
+
+    .cal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+    .cal-nav { display: flex; align-items: center; gap: 8px; }
+    .cal-month { font-size: 14px; font-weight: 500; min-width: 130px; text-align: center; }
+    .cal-legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11px; color: var(--color-text-secondary); }
+    .legend-chip { display: inline-flex; align-items: center; gap: 4px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; background: var(--color-background-secondary); padding: 8px; border-radius: var(--border-radius-md); }
+    .cal-wday { text-align: center; font-size: 10px; color: var(--color-text-secondary); padding: 4px 0; font-weight: 500; }
+    .cal-day { min-height: 70px; background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: 4px; padding: 4px; font-size: 11px; cursor: pointer; position: relative; display: flex; flex-direction: column; gap: 2px; }
+    .cal-day:hover { border-color: var(--color-border-info); }
+    .cal-day.other-month { opacity: 0.35; }
+    .cal-day.today { border: 1.5px solid #185FA5; }
+    .cal-num { font-size: 11px; font-weight: 500; line-height: 1; margin-bottom: 2px; }
+    .cal-job { font-size: 9px; padding: 2px 4px; border-radius: 3px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: #E6F1FB; color: #0C447C; border-left: 2px solid #185FA5; }
+    .cal-job.assigned { background: #EAF3DE; color: #27500A; border-left-color: #639922; }
+    .cal-job.pending-verify { background: #FBEAF0; color: #72243E; border-left-color: #B83A5F; }
+    .cal-job.done { background: #F1EFE8; color: #595959; border-left-color: #888; }
+    .cal-more { font-size: 9px; color: var(--color-text-secondary); padding: 1px 4px; }
+
+    .filter-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
+    .filter-label { font-size: 11px; color: var(--color-text-secondary); margin-right: 4px; }
+    .filter-chip { padding: 5px 11px; border: 0.5px solid var(--color-border-tertiary); background: var(--color-background-primary); border-radius: 14px; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+    .filter-chip:hover { background: var(--color-background-secondary); }
+    .filter-chip.active { background: var(--color-background-info); color: var(--color-text-info); border-color: var(--color-border-info); font-weight: 500; }
+
+    .flow-strip { display: flex; align-items: center; gap: 4px; padding: 8px 10px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); margin-bottom: 12px; font-size: 11px; color: var(--color-text-secondary); flex-wrap: wrap; }
+    .flow-step { padding: 3px 8px; border-radius: 4px; }
+    .flow-step.done { background: #EAF3DE; color: #27500A; }
+    .flow-step.active { background: #E6F1FB; color: #0C447C; font-weight: 500; }
+    .flow-arrow { color: var(--color-border-tertiary); }
+
+    .fir-flow { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 14px 16px; margin-bottom: 12px; }
+    .fir-flow-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+    .fir-flow-title { font-size: 14px; font-weight: 500; }
+    .fir-flow-id { font-family: var(--font-mono); color: var(--color-text-secondary); font-size: 12px; }
+    .flow-sections { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); overflow: hidden; }
+    .flow-section { padding: 12px; background: var(--color-background-primary); border-right: 0.5px solid var(--color-border-tertiary); }
+    .flow-section:last-child { border-right: none; }
+    .flow-section-head { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .flow-section.reporter { background: linear-gradient(0deg, var(--color-background-primary) 90%, #E6F1FB 100%); }
+    .flow-section.bm { background: linear-gradient(0deg, var(--color-background-primary) 90%, #EAF3DE 100%); }
+    .flow-section.admin { background: linear-gradient(0deg, var(--color-background-primary) 90%, #FBEAF0 100%); }
+    .flow-field { padding: 4px 0; font-size: 11px; }
+    .flow-field-label { color: var(--color-text-secondary); font-size: 10px; margin-bottom: 1px; }
+    .flow-field-value { color: var(--color-text-primary); font-weight: 500; word-break: break-word; }
+    .flow-field-value.empty { color: var(--color-text-secondary); font-weight: normal; font-style: italic; }
+    .fir-flow-footer { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+    .edit-lock { font-size: 11px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); }
+    .admin-edit { color: var(--color-text-info); }
+
+    .reminder-banner { background: #FFF8EC; border: 1px solid #FAC775; padding: 10px 12px; border-radius: var(--border-radius-md); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: #633806; }
+    .reminder-banner i { font-size: 18px; }
+    .room-strip { font-size: 11px; padding: 6px 10px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); margin-top: 6px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 6px; }
+    .room-strip.vacant { background: #EAF3DE; color: #27500A; }
+    .room-strip.occupied { background: #FCEBEB; color: #791F1F; }
+
+    .report-priority-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .priority-section { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; }
+    .priority-section-head { padding: 10px 12px; font-size: 13px; font-weight: 500; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; justify-content: space-between; align-items: center; }
+    .priority-section.high .priority-section-head { background: #FAEEDA; color: #633806; }
+    .priority-section.medium .priority-section-head { background: #E6F1FB; color: #0C447C; }
+    .priority-section.low .priority-section-head { background: #F1EFE8; color: #444441; }
+    .priority-count { font-size: 22px; font-weight: 500; }
+    .priority-body { padding: 10px 12px; max-height: 280px; overflow-y: auto; }
+    .priority-issue-row { padding: 6px 0; border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 11px; cursor: pointer; }
+    .priority-issue-row:last-child { border-bottom: none; }
+    .priority-issue-row:hover { background: var(--color-background-secondary); }
+    .priority-issue-title { font-weight: 500; font-size: 12px; margin-bottom: 2px; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+    .priority-issue-meta { color: var(--color-text-secondary); font-size: 10px; }
+    .report-tabs { display: flex; gap: 6px; margin-bottom: 12px; padding: 4px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); width: fit-content; }
+    .report-tab { padding: 6px 14px; border-radius: var(--border-radius-md); font-size: 12px; cursor: pointer; color: var(--color-text-secondary); }
+    .report-tab:hover { color: var(--color-text-primary); }
+    .report-tab.active { background: var(--color-background-primary); color: var(--color-text-primary); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .report-summary { display: flex; gap: 16px; padding: 12px 14px; background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); margin-bottom: 12px; flex-wrap: wrap; }
+    .report-summary-item { flex: 1; min-width: 100px; }
+    .report-summary-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 3px; }
+    .report-summary-val { font-size: 20px; font-weight: 500; }
+    .report-summary-val.ok { color: var(--color-text-success); }
+    .report-summary-val.warn { color: var(--color-text-warning); }
+    .report-summary-val.crit { color: var(--color-text-danger); }
+
+    @media (max-width: 800px) {
+      .flow-sections, .report-priority-grid { grid-template-columns: 1fr; }
+      .flow-section { border-right: none; border-bottom: 0.5px solid var(--color-border-tertiary); }
+      .flow-section:last-child { border-bottom: none; }
+      .sidebar { width: 60px; }
+      .nav-item span:not(.nav-count) { display: none; }
+      .user-card { padding: 6px; }
+      .user-name, .user-role { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-container">
+
+<div class="portal-wrap" id="portal-wrap">
+  <div class="portal-header">
+    <div class="portal-brand">
+      <div class="brand-logo">HH</div>
+      <div>
+        <div class="brand-name">Hamsun Hospitality</div>
+        <div class="brand-sub" id="header-sub">Maintenance Portal</div>
+      </div>
+    </div>
+    <div class="toolbar">
+      <button class="icon-btn" id="btn-notif"><i class="ti ti-bell"></i><span class="notif-dot" id="notif-dot" style="display:none"></span></button>
+      <button class="icon-btn" id="btn-reset" title="Reset all data"><i class="ti ti-refresh"></i></button>
+    </div>
+  </div>
+
+  <div class="role-switcher" id="role-switcher"></div>
+
+  <div class="portal-body">
+    <div class="sidebar" id="sidebar"></div>
+    <div class="main-area" id="main"></div>
+  </div>
+
+  <div id="modal-host"></div>
+  <div id="toast-host"></div>
+  <div id="notif-host"></div>
+</div>
+
+</div>
+
+<script>
+(function() {
+  const STATE_KEY = 'hamsun_3r_v3';
+
+  function ds(y,m,d) { return y + '-' + String(m).padStart(2,'0') + '-' + String(d).padStart(2,'0'); }
+  function todayStr() { const d = new Date(); return ds(d.getFullYear(), d.getMonth()+1, d.getDate()); }
+  function now() { return new Date().toISOString(); }
+  function fmtDate(iso) { if (!iso) return ''; const d = new Date(iso); return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) + ' ' + d.toTimeString().substring(0,5); }
+  function durationBetween(start, end) {
+    if (!start || !end) return '\u2014';
+    const ms = new Date(end) - new Date(start);
+    if (ms < 0) return '\u2014';
+    const hrs = ms / (1000 * 60 * 60);
+    if (hrs < 1) return Math.round(ms/(1000*60)) + ' min';
+    if (hrs < 24) return hrs.toFixed(1) + ' hrs';
+    return (Math.round(hrs / 24 * 10) / 10) + ' days';
+  }
+
+  const BRANCHES = {
+    FSL: { name: 'Shahrah-e-Faisal (Main)', color:'b-branch-fsl' },
+    CLF: { name: 'Clifton', color:'b-branch-clf' },
+    EXT: { name: 'Extension', color:'b-branch-ext' }
+  };
+
+  const ROOM_AVAIL = {
+    'Room G02': { vacant:true, note:'Vacant \u2014 3 days free' },
+    'Room 102': { vacant:false, note:'Occupied \u00b7 vacant 14:00\u201315:30' },
+    'Room 104A': { vacant:true, note:'Under renovation, free 5 days' },
+    'Room 104B': { vacant:false, note:'VIP \u00b7 checkout 12:00 today' },
+    'Room 107': { vacant:true, note:'Vacant for 2 days' },
+    'Room 109': { vacant:false, note:'Occupied until 16 May' },
+    'Room 207': { vacant:true, note:'Vacant 1 day' },
+    'Room 204': { vacant:false, note:'Checkout 15:00 today' },
+    'Cafe': { vacant:true, note:'Common area \u00b7 open access' },
+    'Kitchen Guest': { vacant:true, note:'Common area' },
+    'Generator Area': { vacant:true, note:'Utility area' },
+    'Passage Ground': { vacant:true, note:'Common area' },
+    'Passage First': { vacant:true, note:'Common area' },
+    'Lobby': { vacant:true, note:'Common area' }
+  };
+
+  function buildSampleFirs() {
+    const base = [
+      { id:'FIR-FSL-1000', branch:'FSL', desc:'Bathroom tap leak', dept:'PLUMBER', area:'Room 109', priority:'Medium', status:'pending', subStatus:'marked_done',
+        reporter:'Rashid Hussain', dateReported:'2026-05-12T14:00:00',
+        verificationByAdmin:'Approved by Altamash \u00b7 12 May 14:30', doneByBM:'Marked done by Hammad \u00b7 12 May 16:00', markedDoneAt:'2026-05-12T16:00:00',
+        assignedLabor:'Kashif Plumbing', scheduledDate:ds(2026,5,12), scheduledTime:'10:00-12:00',
+        doneApprovedByAdmin:null, duration:null, reminderCount:3, lastReminded:'2026-05-13T10:00:00' },
+      { id:'FIR-FSL-1001', branch:'FSL', desc:'Kitchen exhaust hood blocked', dept:'HVAC', area:'Kitchen Guest', priority:'High', status:'pending', subStatus:'approved',
+        reporter:'Rashid Hussain', dateReported:'2026-05-13T08:15:00', verificationByAdmin:'Approved by Altamash \u00b7 13 May 08:30', doneByBM:null, doneApprovedByAdmin:null, duration:null },
+      { id:'FIR-FSL-1002', branch:'FSL', desc:'AC compressor failure', dept:'ELECTRICIAN', area:'Room 204', priority:'High', status:'pending', subStatus:'assigned',
+        reporter:'Rashid Hussain', dateReported:'2026-05-13T07:30:00', verificationByAdmin:'Approved by Altamash \u00b7 13 May 07:45', doneByBM:null,
+        assignedLabor:'Faisal AC Services', scheduledDate:ds(2026,5,13), scheduledTime:'15:00-18:00', doneApprovedByAdmin:null, duration:null },
+      { id:'FIR-FSL-1003', branch:'FSL', desc:'Wardrobe handle loose', dept:'CARPENTER', area:'Room 107', priority:'Medium', status:'submitted',
+        reporter:'Rashid Hussain', dateReported:'2026-05-13T09:42:00', verificationByAdmin:null, doneByBM:null, doneApprovedByAdmin:null, duration:null },
+      { id:'FIR-CLF-244', branch:'CLF', desc:'Lobby light flickering', dept:'ELECTRICIAN', area:'Lobby', priority:'Low', status:'submitted',
+        reporter:'Rashid Hussain', dateReported:'2026-05-13T10:30:00', verificationByAdmin:null, doneByBM:null, doneApprovedByAdmin:null, duration:null },
+      { id:'FIR-FSL-0998', branch:'FSL', desc:'Wall paint touch-up', dept:'PAINTER', area:'Cafe', priority:'Low', status:'done',
+        reporter:'Rashid Hussain', dateReported:'2026-05-10T11:00:00', verificationByAdmin:'Approved by Altamash \u00b7 10 May 11:30',
+        doneByBM:'Marked done by Hammad \u00b7 11 May 17:00', markedDoneAt:'2026-05-11T17:00:00', assignedLabor:'Pak Painters', scheduledDate:ds(2026,5,11), scheduledTime:'14:00-17:00',
+        doneApprovedByAdmin:'Verified by Altamash \u00b7 11 May 17:30', verifiedAt:'2026-05-11T17:30:00', duration:'1.3 days' },
+      { id:'FIR-FSL-0995', branch:'FSL', desc:'Faulty smoke alarm (false alert)', dept:'ELECTRICIAN', area:'Room G02', priority:'Low', status:'rejected',
+        reporter:'Rashid Hussain', dateReported:'2026-05-09T08:00:00',
+        verificationByAdmin:'Rejected by Altamash \u00b7 9 May 08:30 (false report, alarm tested OK)', doneByBM:null, doneApprovedByAdmin:null, duration:null }
+    ];
+    const historical = [
+      { date:'2026-05-08T09:00:00', resolved:'2026-05-08T15:00:00', desc:'Geyser thermostat replaced', dept:'PLUMBER', area:'Room 102', priority:'High', branch:'FSL' },
+      { date:'2026-05-09T10:30:00', resolved:'2026-05-10T11:00:00', desc:'Door hinge repaired', dept:'CARPENTER', area:'Room 207', priority:'Low', branch:'FSL' },
+      { date:'2026-05-10T08:00:00', resolved:'2026-05-10T13:30:00', desc:'Wi-Fi router replaced', dept:'IT', area:'Lobby', priority:'Medium', branch:'CLF' },
+      { date:'2026-05-11T14:00:00', resolved:'2026-05-12T09:00:00', desc:'Cafe sink unblocked', dept:'PLUMBER', area:'Cafe', priority:'Medium', branch:'FSL' },
+      { date:'2026-05-12T07:30:00', resolved:'2026-05-12T11:00:00', desc:'Curtain rod refitted', dept:'CARPENTER', area:'Room 104A', priority:'Low', branch:'FSL' },
+      { date:'2026-05-02T11:00:00', resolved:'2026-05-02T16:00:00', desc:'Generator oil change', dept:'ELECTRICIAN', area:'Generator Area', priority:'High', branch:'FSL' },
+      { date:'2026-05-03T10:00:00', resolved:'2026-05-04T12:00:00', desc:'AC servicing 5 rooms', dept:'HVAC', area:'Passage First', priority:'Medium', branch:'CLF' },
+      { date:'2026-05-04T08:00:00', resolved:'2026-05-04T14:00:00', desc:'Kitchen burner fix', dept:'GENERAL', area:'Kitchen Guest', priority:'Medium', branch:'FSL' },
+      { date:'2026-05-05T15:00:00', resolved:'2026-05-06T10:00:00', desc:'Replaced 8 LED bulbs', dept:'ELECTRICIAN', area:'Passage Ground', priority:'Low', branch:'EXT' },
+      { date:'2026-05-06T09:00:00', resolved:'2026-05-07T11:00:00', desc:'Bathroom tile regrouted', dept:'GENERAL', area:'Room 102', priority:'Low', branch:'FSL' },
+      { date:'2026-04-22T08:00:00', resolved:'2026-04-22T15:00:00', desc:'Major water leak fixed', dept:'PLUMBER', area:'Room 104B', priority:'High', branch:'FSL' },
+      { date:'2026-04-24T11:00:00', resolved:'2026-04-25T10:00:00', desc:'Electrical panel inspection', dept:'ELECTRICIAN', area:'Generator Area', priority:'High', branch:'CLF' },
+      { date:'2026-04-26T09:00:00', resolved:'2026-04-26T14:00:00', desc:'Cafe espresso machine repair', dept:'GENERAL', area:'Cafe', priority:'Medium', branch:'FSL' },
+      { date:'2026-04-28T13:00:00', resolved:'2026-04-29T11:00:00', desc:'Wallpaper damage repaired', dept:'PAINTER', area:'Room 207', priority:'Low', branch:'FSL' },
+      { date:'2026-04-10T08:00:00', resolved:'2026-04-10T16:00:00', desc:'Boiler servicing', dept:'PLUMBER', area:'Generator Area', priority:'High', branch:'FSL' },
+      { date:'2026-04-12T10:00:00', resolved:'2026-04-13T09:00:00', desc:'Pest control treatment', dept:'GENERAL', area:'Kitchen Guest', priority:'Medium', branch:'EXT' },
+      { date:'2026-04-15T11:00:00', resolved:'2026-04-15T16:00:00', desc:'Window glass replaced', dept:'CARPENTER', area:'Room 109', priority:'Medium', branch:'FSL' },
+      { date:'2026-04-18T09:00:00', resolved:'2026-04-19T12:00:00', desc:'Carpet shampoo', dept:'GENERAL', area:'Lobby', priority:'Low', branch:'CLF' },
+      { date:'2026-03-05T08:00:00', resolved:'2026-03-05T14:00:00', desc:'Generator inspection', dept:'ELECTRICIAN', area:'Generator Area', priority:'High', branch:'FSL' },
+      { date:'2026-03-12T11:00:00', resolved:'2026-03-13T10:00:00', desc:'AC overhaul x4', dept:'HVAC', area:'Passage Ground', priority:'High', branch:'FSL' },
+      { date:'2026-03-15T09:00:00', resolved:'2026-03-15T13:00:00', desc:'Kitchen exhaust clean', dept:'HVAC', area:'Kitchen Guest', priority:'Medium', branch:'CLF' },
+      { date:'2026-03-22T14:00:00', resolved:'2026-03-23T11:00:00', desc:'Door lock changed (5)', dept:'CARPENTER', area:'Passage First', priority:'Medium', branch:'FSL' },
+      { date:'2026-02-08T10:00:00', resolved:'2026-02-08T14:00:00', desc:'Plumbing leak repair', dept:'PLUMBER', area:'Room 204', priority:'High', branch:'FSL' },
+      { date:'2026-02-14T11:00:00', resolved:'2026-02-15T12:00:00', desc:'Generator service', dept:'ELECTRICIAN', area:'Generator Area', priority:'High', branch:'FSL' },
+      { date:'2026-02-20T09:00:00', resolved:'2026-02-20T16:00:00', desc:'Major paint job 2 rooms', dept:'PAINTER', area:'Room 102', priority:'Medium', branch:'EXT' },
+      { date:'2026-01-10T10:00:00', resolved:'2026-01-10T15:00:00', desc:'AC service x6', dept:'HVAC', area:'Passage Ground', priority:'High', branch:'FSL' },
+      { date:'2026-01-18T11:00:00', resolved:'2026-01-19T11:00:00', desc:'Carpenter work cabinet', dept:'CARPENTER', area:'Room 107', priority:'Medium', branch:'CLF' },
+      { date:'2026-01-25T08:00:00', resolved:'2026-01-25T14:00:00', desc:'Electrical wiring fix', dept:'ELECTRICIAN', area:'Generator Area', priority:'High', branch:'FSL' }
+    ];
+    const branchCounters = { FSL: 980, CLF: 200, EXT: 60 };
+    const histFull = historical.map(h => {
+      const num = branchCounters[h.branch]++;
+      return {
+        id: 'FIR-' + h.branch + '-' + num, branch: h.branch,
+        desc: h.desc, dept: h.dept, area: h.area, priority: h.priority,
+        status: 'done',
+        reporter: 'Rashid Hussain',
+        dateReported: h.date,
+        verificationByAdmin: 'Approved by Altamash \u00b7 ' + fmtDate(h.date),
+        doneByBM: 'Marked done by Hammad \u00b7 ' + fmtDate(h.resolved),
+        markedDoneAt: h.resolved,
+        assignedLabor: 'Various',
+        scheduledDate: h.resolved.substring(0,10),
+        scheduledTime: '10:00-14:00',
+        doneApprovedByAdmin: 'Verified by Altamash \u00b7 ' + fmtDate(h.resolved),
+        verifiedAt: h.resolved,
+        duration: durationBetween(h.date, h.resolved)
+      };
+    });
+    return base.concat(histFull);
+  }
+
+  const DEFAULT_STATE = {
+    currentRole: 'reporter',
+    currentPage: 'reporter/new',
+    nextFirNum: { FSL: 1006, CLF: 245, EXT: 88 },
+    cal: { year: 2026, month: 5 },
+    reportPeriod: 'weekly',
+    notifications: [
+      { role:'admin', text:'New FIR-FSL-1003 awaiting approval', time:'09:42', read:false },
+      { role:'admin', text:'\u23f0 FIR-FSL-1000 marked done by Hammad \u2014 verify needed', time:'10:00', read:false, urgent:true },
+      { role:'bm', text:'FIR-FSL-1001 approved \u2014 assign labor', time:'08:30', read:false }
+    ],
+    activity: [
+      { text:'Reporter logged FIR-FSL-1003', time:'09:42' },
+      { text:'Altamash approved FIR-FSL-1001', time:'08:30' },
+      { text:'Hammad marked FIR-FSL-1000 done', time:'Yesterday 16:00' }
+    ],
+    auditLog: [
+      { time:'09:42', user:'Reporter Rashid', action:'Logged FIR-FSL-1003' },
+      { time:'08:30', user:'Admin Altamash', action:'Approved FIR-FSL-1001' }
+    ],
+    firs: buildSampleFirs(),
+    laborOptions: [
+      { name:'Kashif Plumbing', specialty:'PLUMBER' },
+      { name:'Faisal AC Services', specialty:'HVAC' },
+      { name:'Tech World Electricals', specialty:'ELECTRICIAN' },
+      { name:'Wood Masters', specialty:'CARPENTER' },
+      { name:'Pak Painters', specialty:'PAINTER' },
+      { name:'Internal \u2014 Jamil Kumar', specialty:'GENERAL' }
+    ]
+  };
+
+  let state;
+  function loadState() {
+    try {
+      const r = localStorage.getItem(STATE_KEY);
+      state = r ? JSON.parse(r) : JSON.parse(JSON.stringify(DEFAULT_STATE));
+    } catch(e) { state = JSON.parse(JSON.stringify(DEFAULT_STATE)); }
+  }
+  function saveState() { try { localStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch(e) {} }
+  function resetState() { state = JSON.parse(JSON.stringify(DEFAULT_STATE)); saveState(); render(); toast('Reset'); }
+
+  function nextFirId(branch) { const n = state.nextFirNum[branch]++; return 'FIR-' + branch + '-' + n; }
+  function addActivity(t) { state.activity.unshift({ text:t, time:new Date().toTimeString().substring(0,5) }); state.activity = state.activity.slice(0,8); }
+  function notify(role, text, urgent) { state.notifications.unshift({ role, text, time:new Date().toTimeString().substring(0,5), read:false, urgent:!!urgent }); state.notifications = state.notifications.slice(0,20); }
+  function audit(u, a) { state.auditLog.unshift({ time:new Date().toTimeString().substring(0,5), user:u, action:a }); state.auditLog = state.auditLog.slice(0,30); }
+  function getFir(id) { return state.firs.find(f => f.id === id); }
+
+  function priorityBadge(p) { const m = {'High':'b-high','Medium':'b-med','Low':'b-low'}; return '<span class="badge ' + (m[p]||'b-med') + '">' + p + '</span>'; }
+  function branchBadge(b) { return '<span class="badge ' + BRANCHES[b].color + '">' + b + '</span>'; }
+  function statusBadge(f) {
+    if (f.status === 'submitted') return '<span class="badge b-wait">Submitted</span>';
+    if (f.status === 'rejected') return '<span class="badge b-crit">Rejected</span>';
+    if (f.status === 'done') return '<span class="badge b-done">Done</span>';
+    if (f.subStatus === 'approved') return '<span class="badge b-med">Pending \u00b7 BM</span>';
+    if (f.subStatus === 'assigned') return '<span class="badge b-prog">Pending \u00b7 In Progress</span>';
+    if (f.subStatus === 'marked_done') return '<span class="badge b-pending-verify">Pending \u00b7 Awaiting Verify</span>';
+    return '<span class="badge b-wait">Pending</span>';
+  }
+
+  function toast(msg) { const h = document.getElementById('toast-host'); h.innerHTML = '<div class="toast"><i class="ti ti-check"></i>' + msg + '</div>'; setTimeout(() => { if(h) h.innerHTML = ''; }, 2200); }
+  function showModal(title, body, foot) {
+    const h = document.getElementById('modal-host');
+    h.innerHTML = '<div class="modal-overlay" id="modal-overlay"><div class="modal"><div class="modal-head"><div class="modal-title">' + title + '</div><button class="icon-btn" id="modal-close"><i class="ti ti-x"></i></button></div><div class="modal-body">' + body + '</div><div class="modal-foot">' + (foot||'') + '</div></div></div>';
+    document.getElementById('modal-close').onclick = closeModal;
+    document.getElementById('modal-overlay').onclick = (e) => { if (e.target.id === 'modal-overlay') closeModal(); };
+  }
+  function closeModal() { document.getElementById('modal-host').innerHTML = ''; }
+  window.closeModalBtn = closeModal;
+
+  function renderFlowView(f, role) {
+    const canEdit = role === 'admin';
+    const editIcon = canEdit ? '<i class="ti ti-pencil admin-edit"></i> Admin can edit' : '<i class="ti ti-lock"></i> Read-only (Admin only)';
+    let h = '<div class="fir-flow"><div class="fir-flow-head"><div><div class="fir-flow-title">' + f.desc + '</div><div class="fir-flow-id">' + f.id + ' \u00b7 ' + branchBadge(f.branch) + ' ' + BRANCHES[f.branch].name + '</div></div><div style="display:flex; gap:4px; flex-wrap:wrap; align-items:center;">' + statusBadge(f) + priorityBadge(f.priority) + '</div></div>';
+    h += '<div class="flow-sections">';
+    h += '<div class="flow-section reporter"><div class="flow-section-head"><i class="ti ti-flag"></i>Reporter</div>';
+    h += '<div class="flow-field"><div class="flow-field-label">FIR No.</div><div class="flow-field-value">' + f.id + '</div></div>';
+    h += '<div class="flow-field"><div class="flow-field-label">Description</div><div class="flow-field-value">' + f.desc + '</div></div>';
+    h += '<div class="flow-field"><div class="flow-field-label">Department</div><div class="flow-field-value">' + f.dept + '</div></div>';
+    h += '<div class="flow-field"><div class="flow-field-label">Area</div><div class="flow-field-value">' + f.area + '</div></div>';
+    h += '<div class="flow-field"><div class="flow-field-label">Priority</div><div class="flow-field-value">' + f.priority + '</div></div>';
+    h += '<div class="flow-field"><div class="flow-field-label">Reported by</div><div class="flow-field-value">' + f.reporter + '</div></div>';
+    h += '<div class="flow-field"><div class="flow-field-label">Date reported</div><div class="flow-field-value">' + fmtDate(f.dateReported) + '</div></div></div>';
+
+    h += '<div class="flow-section bm"><div class="flow-section-head"><i class="ti ti-building"></i>Branch Manager</div>';
+    h += '<div class="flow-field"><div class="flow-field-label">Status</div><div class="flow-field-value">' + statusBadge(f) + '</div></div>';
+    h += '<div class="flow-field"><div class="flow-field-label">Verification by Admin</div><div class="flow-field-value' + (!f.verificationByAdmin ? ' empty' : '') + '">' + (f.verificationByAdmin || 'Not yet approved') + '</div></div>';
+    h += '<div class="flow-field"><div class="flow-field-label">Labor assigned</div><div class="flow-field-value' + (!f.assignedLabor ? ' empty' : '') + '">' + (f.assignedLabor || 'Not yet assigned') + '</div></div>';
+    h += '<div class="flow-field"><div class="flow-field-label">Scheduled</div><div class="flow-field-value' + (!f.scheduledDate ? ' empty' : '') + '">' + (f.scheduledDate ? f.scheduledDate + ' ' + (f.scheduledTime||'') : 'Not scheduled') + '</div></div>';
+    h += '<div class="flow-field"><div class="flow-field-label">Done by Branch Manager</div><div class="flow-field-value' + (!f.doneByBM ? ' empty' : '') + '">' + (f.doneByBM || 'Not yet marked done') + '</div></div></div>';
+
+    h += '<div class="flow-section admin"><div class="flow-section-head"><i class="ti ti-crown"></i>Admin</div>';
+    h += '<div class="flow-field"><div class="flow-field-label">Done approved by Admin</div><div class="flow-field-value' + (!f.doneApprovedByAdmin ? ' empty' : '') + '">' + (f.doneApprovedByAdmin || 'Awaiting verification') + '</div></div>';
+    const dur = f.duration || (f.verifiedAt ? durationBetween(f.dateReported, f.verifiedAt) : '\u2014');
+    h += '<div class="flow-field"><div class="flow-field-label">Duration to resolve</div><div class="flow-field-value' + (dur === '\u2014' ? ' empty' : '') + '">' + dur + '</div></div>';
+    if (f.reminderCount) h += '<div class="flow-field"><div class="flow-field-label">Reminders sent</div><div class="flow-field-value">' + f.reminderCount + ' \u00b7 last ' + fmtDate(f.lastReminded) + '</div></div>';
+    h += '</div></div>';
+
+    h += '<div class="fir-flow-footer"><span class="edit-lock">' + editIcon + '</span>';
+    if (canEdit) h += '<button class="btn-sm" onclick="adminEditFir(\''+f.id+'\')"><i class="ti ti-pencil"></i>Edit fields</button>';
+    h += '</div></div>';
+    return h;
+  }
+
+  window.openNewIssueForm = function() {
+    const body = '<div class="form-row"><label class="form-label">Branch</label><select class="form-input" id="ni-branch">' + Object.keys(BRANCHES).map(b => '<option value="' + b + '">' + b + ' \u2014 ' + BRANCHES[b].name + '</option>').join('') + '</select></div>' +
+      '<div class="form-row"><label class="form-label">Area / Location</label><select class="form-input" id="ni-area">' + Object.keys(ROOM_AVAIL).map(a => '<option>' + a + '</option>').join('') + '</select></div>' +
+      '<div class="two-col"><div class="form-row"><label class="form-label">Department</label><select class="form-input" id="ni-dept"><option>PLUMBER</option><option>ELECTRICIAN</option><option>CARPENTER</option><option>HVAC</option><option>PAINTER</option><option>IT</option><option>GENERAL</option></select></div>' +
+      '<div class="form-row"><label class="form-label">Priority</label><select class="form-input" id="ni-priority"><option>High</option><option selected>Medium</option><option>Low</option></select></div></div>' +
+      '<div class="form-row"><label class="form-label">FIR Description</label><textarea class="form-input" rows="3" id="ni-desc" placeholder="Describe the issue clearly..."></textarea></div>' +
+      '<div class="form-row"><label class="form-label">Photo</label><div class="photo-box" onclick="this.classList.add(\'captured\'); this.innerHTML=\'<i class=ti ti-check></i> Captured\'"><i class="ti ti-camera" style="font-size:22px;"></i><div>Tap to capture</div></div></div>' +
+      '<div class="alert-card info"><i class="ti ti-info-circle"></i>This will be sent to Altamash (Admin) for approval first.</div>';
+    showModal('Report new issue', body, '<button class="btn-sm" onclick="closeModalBtn()">Cancel</button><button class="btn-sm primary" onclick="submitNewIssue()"><i class="ti ti-send"></i>Submit to Admin</button>');
+  };
+  window.submitNewIssue = function() {
+    const branch = document.getElementById('ni-branch').value;
+    const id = nextFirId(branch);
+    const fir = { id, branch, desc:document.getElementById('ni-desc').value.trim()||'New issue', area:document.getElementById('ni-area').value, dept:document.getElementById('ni-dept').value, priority:document.getElementById('ni-priority').value, status:'submitted', reporter:'Rashid Hussain', dateReported:now(), verificationByAdmin:null, doneByBM:null, doneApprovedByAdmin:null, duration:null };
+    state.firs.unshift(fir);
+    addActivity('Reporter created ' + id); audit('Rashid', 'Created ' + id);
+    notify('admin', 'New ' + id + ' awaiting approval');
+    saveState(); closeModal(); toast(id + ' submitted'); render();
+  };
+
+  window.adminApprove = function(id) {
+    const f = getFir(id); f.status='pending'; f.subStatus='approved'; f.verificationByAdmin = 'Approved by Altamash \u00b7 ' + fmtDate(now());
+    audit('Altamash','Approved '+id); addActivity('Altamash approved '+id); notify('bm', id + ' approved \u2014 assign labor');
+    saveState(); toast('Approved \u00b7 sent to Hammad'); render();
+  };
+  window.adminReject = function(id) {
+    const reason = prompt('Reason for rejection?', 'Not a valid issue'); if (reason === null) return;
+    const f = getFir(id); f.status='rejected'; f.verificationByAdmin='Rejected by Altamash \u00b7 '+fmtDate(now())+' ('+reason+')';
+    audit('Altamash','Rejected '+id); addActivity('Altamash rejected '+id); notify('reporter', id + ' was rejected');
+    saveState(); toast('Rejected'); render();
+  };
+  window.adminVerify = function(id) {
+    const f = getFir(id);
+    const body = '<div class="muted" style="margin-bottom:10px;">Confirm work on <b>' + f.desc + '</b> at <b>' + f.area + '</b> is complete.</div>' + renderFlowView(f,'admin') + '<div class="alert-card info"><i class="ti ti-info-circle"></i>Once verified, the issue is officially Done.</div>';
+    showModal('Verify completion \u2014 '+id, body, '<button class="btn-sm danger" onclick="adminVerifyReject(\''+id+'\')"><i class="ti ti-x"></i>Send back \u00b7 rework</button><button class="btn-sm success" onclick="adminVerifyConfirm(\''+id+'\')"><i class="ti ti-check"></i>Verify \u00b7 mark Done</button>');
+  };
+  window.adminVerifyConfirm = function(id) {
+    const f = getFir(id); f.status='done'; f.subStatus=null; f.verifiedAt=now(); f.doneApprovedByAdmin='Verified by Altamash \u00b7 '+fmtDate(now()); f.duration=durationBetween(f.dateReported, f.verifiedAt);
+    audit('Altamash','Verified '+id); addActivity('Altamash verified '+id); notify('bm', id + ' verified \u2014 Done'); notify('reporter','Your '+id+' was resolved');
+    saveState(); closeModal(); toast('Verified \u00b7 Done'); render();
+  };
+  window.adminVerifyReject = function(id) {
+    const f = getFir(id); f.subStatus='assigned'; f.doneByBM=null; f.markedDoneAt=null;
+    audit('Altamash','Rejected verification of '+id); notify('bm','\u26a0 '+id+' sent back \u2014 rework needed', true);
+    saveState(); closeModal(); toast('Sent back to Hammad'); render();
+  };
+
+  window.bmAssignShow = function(id) {
+    const f = getFir(id); const r = ROOM_AVAIL[f.area] || {vacant:true,note:''};
+    const opts = state.laborOptions.filter(o => o.specialty === f.dept || o.specialty === 'GENERAL').map(o => '<option>'+o.name+' ('+o.specialty+')</option>').join('');
+    const fallback = state.laborOptions.map(o => '<option>'+o.name+' ('+o.specialty+')</option>').join('');
+    const body = '<div class="muted" style="margin-bottom:10px;">'+f.desc+' \u00b7 '+f.area+' \u00b7 '+f.dept+'</div>' +
+      '<div class="room-strip '+(r.vacant?'vacant':'occupied')+'"><i class="ti ti-'+(r.vacant?'check':'alert-circle')+'"></i>'+r.note+'</div>' +
+      '<div class="form-row" style="margin-top:10px;"><label class="form-label">Assign labor</label><select class="form-input" id="bm-labor">'+(opts||fallback)+'</select></div>' +
+      '<div class="two-col"><div class="form-row"><label class="form-label">Date</label><input class="form-input" type="date" id="bm-date" value="'+todayStr()+'"></div><div class="form-row"><label class="form-label">Time window</label><input class="form-input" id="bm-time" value="10:00-12:00"></div></div>' +
+      '<div class="alert-card info"><i class="ti ti-info-circle"></i>This appears on the labor calendar (visible to Altamash and you).</div>';
+    showModal('Align labor \u2014 '+id, body, '<button class="btn-sm" onclick="closeModalBtn()">Cancel</button><button class="btn-sm primary" onclick="bmAssignConfirm(\''+id+'\')"><i class="ti ti-check"></i>Schedule</button>');
+  };
+  window.bmAssignConfirm = function(id) {
+    const f = getFir(id); f.assignedLabor=document.getElementById('bm-labor').value.split(' (')[0]; f.scheduledDate=document.getElementById('bm-date').value; f.scheduledTime=document.getElementById('bm-time').value; f.subStatus='assigned';
+    audit('Hammad','Assigned '+f.assignedLabor+' to '+id); addActivity('Hammad scheduled '+id); notify('admin','Hammad scheduled labor for '+id);
+    saveState(); closeModal(); toast('Labor scheduled'); render();
+  };
+  window.bmMarkDone = function(id) {
+    const f = getFir(id); f.subStatus='marked_done'; f.markedDoneAt=now(); f.doneByBM='Marked done by Hammad \u00b7 '+fmtDate(now()); f.reminderCount=0; f.lastReminded=null;
+    audit('Hammad','Marked '+id+' done'); addActivity('Hammad marked '+id+' done'); notify('admin','\u26a0 '+id+' marked done by Hammad \u2014 verify needed', true);
+    saveState(); toast('Marked done \u00b7 Altamash notified'); render();
+  };
+  window.sendReminder = function(id) {
+    const f = getFir(id); f.reminderCount=(f.reminderCount||0)+1; f.lastReminded=now();
+    notify('admin','\u23f0 Reminder #'+f.reminderCount+': '+id+' awaiting verify', true); audit('System','Reminder for '+id);
+    saveState(); toast('Reminder sent'); render();
+  };
+  window.adminEditFir = function(id) {
+    const f = getFir(id);
+    const body = '<div class="alert-card info"><i class="ti ti-info-circle"></i>As Admin (Altamash) you can edit any field. Changes are logged.</div>' +
+      '<div class="two-col"><div class="form-row"><label class="form-label">Description</label><input class="form-input" id="e-desc" value="'+f.desc+'"></div><div class="form-row"><label class="form-label">Department</label><select class="form-input" id="e-dept"><option'+(f.dept==='PLUMBER'?' selected':'')+'>PLUMBER</option><option'+(f.dept==='ELECTRICIAN'?' selected':'')+'>ELECTRICIAN</option><option'+(f.dept==='CARPENTER'?' selected':'')+'>CARPENTER</option><option'+(f.dept==='HVAC'?' selected':'')+'>HVAC</option><option'+(f.dept==='PAINTER'?' selected':'')+'>PAINTER</option><option'+(f.dept==='IT'?' selected':'')+'>IT</option><option'+(f.dept==='GENERAL'?' selected':'')+'>GENERAL</option></select></div></div>' +
+      '<div class="two-col"><div class="form-row"><label class="form-label">Area</label><select class="form-input" id="e-area">'+Object.keys(ROOM_AVAIL).map(a => '<option'+(f.area===a?' selected':'')+'>'+a+'</option>').join('')+'</select></div><div class="form-row"><label class="form-label">Priority</label><select class="form-input" id="e-priority"><option'+(f.priority==='High'?' selected':'')+'>High</option><option'+(f.priority==='Medium'?' selected':'')+'>Medium</option><option'+(f.priority==='Low'?' selected':'')+'>Low</option></select></div></div>';
+    showModal('Admin edit \u2014 '+id, body, '<button class="btn-sm" onclick="closeModalBtn()">Cancel</button><button class="btn-sm primary" onclick="adminEditSave(\''+id+'\')"><i class="ti ti-check"></i>Save</button>');
+  };
+  window.adminEditSave = function(id) {
+    const f = getFir(id); f.desc=document.getElementById('e-desc').value; f.dept=document.getElementById('e-dept').value; f.area=document.getElementById('e-area').value; f.priority=document.getElementById('e-priority').value;
+    audit('Altamash','Edited '+id); addActivity('Altamash edited '+id);
+    saveState(); closeModal(); toast('Saved'); render();
+  };
+
+  window.calNavigate = function(dir) {
+    state.cal.month += dir; if(state.cal.month>12){state.cal.month=1; state.cal.year++;} if(state.cal.month<1){state.cal.month=12; state.cal.year--;}
+    saveState(); renderMain();
+  };
+  window.setReportPeriod = function(p) { state.reportPeriod = p; saveState(); renderMain(); };
+
+  function renderCalendar(role) {
+    const mn = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
+    const monthLabel = mn[state.cal.month] + ' ' + state.cal.year;
+    let h = '<div class="page-title">Labor Calendar</div><div class="page-sub">' + (role === 'admin' ? 'Oversight view of all scheduled labor across branches' : 'Plan and view your labor schedule \u00b7 Altamash can see this too') + '</div>';
+    const upcoming = state.firs.filter(f => f.scheduledDate);
+    const thisMonth = upcoming.filter(f => f.scheduledDate.startsWith(state.cal.year + '-' + String(state.cal.month).padStart(2,'0')));
+    h += '<div class="kpi-grid"><div class="kpi"><div class="kpi-label">Scheduled this month</div><div class="kpi-val">' + thisMonth.length + '</div></div><div class="kpi"><div class="kpi-label">Today</div><div class="kpi-val warn">' + upcoming.filter(f => f.scheduledDate === todayStr()).length + '</div></div><div class="kpi"><div class="kpi-label">Awaiting verify</div><div class="kpi-val crit">' + state.firs.filter(f => f.subStatus === 'marked_done').length + '</div></div></div>';
+    h += '<div class="section-card"><div class="cal-head"><div class="cal-nav"><button class="btn-sm" onclick="calNavigate(-1)"><i class="ti ti-chevron-left"></i></button><div class="cal-month">' + monthLabel + '</div><button class="btn-sm" onclick="calNavigate(1)"><i class="ti ti-chevron-right"></i></button></div><div class="cal-legend"><span class="legend-chip"><span class="legend-dot" style="background:#9FE1CB"></span>Assigned</span><span class="legend-chip"><span class="legend-dot" style="background:#F3C2D5"></span>Awaiting verify</span><span class="legend-chip"><span class="legend-dot" style="background:#D0CECB"></span>Done</span></div></div><div class="cal-grid">';
+    ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(w => h += '<div class="cal-wday">'+w+'</div>');
+    const y = state.cal.year, m = state.cal.month;
+    const fd = new Date(y,m-1,1); let off = fd.getDay()-1; if (off<0) off=6;
+    const dim = new Date(y,m,0).getDate(); const pmd = new Date(y,m-1,0).getDate();
+    const tStr = todayStr();
+    for (let i=off-1; i>=0; i--) h += '<div class="cal-day other-month"><div class="cal-num">'+(pmd-i)+'</div></div>';
+    for (let d=1; d<=dim; d++) {
+      const dStr = ds(y,m,d); const dayJobs = upcoming.filter(f => f.scheduledDate === dStr); const isT = dStr === tStr;
+      h += '<div class="cal-day'+(isT?' today':'')+'"><div class="cal-num">'+d+'</div>';
+      dayJobs.slice(0,3).forEach(j => {
+        const cls = j.status==='done' ? 'done' : (j.subStatus==='marked_done' ? 'pending-verify' : 'assigned');
+        h += '<div class="cal-job '+cls+'" onclick="openFlowModal(\''+j.id+'\', \''+role+'\'); event.stopPropagation();" title="'+j.id+'">' + (j.assignedLabor ? j.assignedLabor.split(' ')[0] : '?') + ' \u00b7 ' + j.area.replace('Room ','') + '</div>';
+      });
+      if (dayJobs.length > 3) h += '<div class="cal-more">+'+(dayJobs.length-3)+' more</div>';
+      h += '</div>';
+    }
+    const tot = off+dim; const tr = (7-(tot%7))%7;
+    for (let d=1; d<=tr; d++) h += '<div class="cal-day other-month"><div class="cal-num">'+d+'</div></div>';
+    h += '</div></div>';
+    h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-list"></i>Scheduled this month ('+thisMonth.length+')</span></div>';
+    if (!thisMonth.length) h += '<div class="empty-state"><i class="ti ti-calendar-off"></i>Nothing scheduled.</div>';
+    else thisMonth.sort((a,b) => a.scheduledDate.localeCompare(b.scheduledDate)).forEach(f => h += '<div class="compact-row" onclick="openFlowModal(\''+f.id+'\', \''+role+'\')" style="cursor:pointer;"><div><div style="font-weight:500;">'+branchBadge(f.branch)+' '+f.id+' \u00b7 '+f.desc+'</div><div class="muted">'+(f.assignedLabor||'-')+' \u00b7 '+f.area+' \u00b7 '+f.scheduledDate+' '+(f.scheduledTime||'')+'</div></div>'+statusBadge(f)+'</div>');
+    h += '</div>';
+    return h;
+  }
+
+  window.openFlowModal = function(id, role) {
+    const f = getFir(id);
+    let foot = '<button class="btn-sm" onclick="closeModalBtn()">Close</button>';
+    if (role === 'admin') {
+      if (f.status === 'submitted') foot = '<button class="btn-sm danger" onclick="adminReject(\''+id+'\'); closeModalBtn();"><i class="ti ti-x"></i>Reject</button><button class="btn-sm success" onclick="adminApprove(\''+id+'\'); closeModalBtn();"><i class="ti ti-check"></i>Approve</button><button class="btn-sm" onclick="adminEditFir(\''+id+'\')"><i class="ti ti-pencil"></i>Edit</button>';
+      else if (f.subStatus === 'marked_done') foot = '<button class="btn-sm" onclick="closeModalBtn()">Close</button><button class="btn-sm primary" onclick="adminVerify(\''+id+'\'); closeModalBtn();"><i class="ti ti-check"></i>Verify \u00b7 mark Done</button>';
+      else foot = '<button class="btn-sm" onclick="closeModalBtn()">Close</button><button class="btn-sm" onclick="adminEditFir(\''+id+'\')"><i class="ti ti-pencil"></i>Edit</button>';
+    } else if (role === 'bm') {
+      if (f.subStatus === 'approved') foot = '<button class="btn-sm" onclick="closeModalBtn()">Close</button><button class="btn-sm primary" onclick="bmAssignShow(\''+id+'\'); closeModalBtn();"><i class="ti ti-calendar-plus"></i>Align labor</button>';
+      else if (f.subStatus === 'assigned') foot = '<button class="btn-sm" onclick="closeModalBtn()">Close</button><button class="btn-sm success" onclick="bmMarkDone(\''+id+'\'); closeModalBtn();"><i class="ti ti-check"></i>Mark done</button>';
+      else if (f.subStatus === 'marked_done') foot = '<button class="btn-sm" onclick="closeModalBtn()">Close</button><button class="btn-sm primary" onclick="sendReminder(\''+id+'\'); closeModalBtn();"><i class="ti ti-bell"></i>Remind Altamash</button>';
+    }
+    showModal(f.id + ' \u00b7 Flow', renderFlowView(f, role), foot);
+  };
+
+  function getResolvedInPeriod(period) {
+    const today = new Date('2026-05-13T12:00:00');
+    let start;
+    if (period === 'weekly') { start = new Date(today); start.setDate(today.getDate() - 7); }
+    else if (period === 'monthly') { start = new Date(today); start.setMonth(today.getMonth() - 1); }
+    else { start = new Date(today); start.setFullYear(today.getFullYear() - 1); }
+    return state.firs.filter(f => {
+      if (f.status !== 'done') return false;
+      if (!f.verifiedAt && !f.markedDoneAt) return false;
+      const d = new Date(f.verifiedAt || f.markedDoneAt);
+      return d >= start && d <= today;
+    });
+  }
+
+  function renderReports(role) {
+    const period = state.reportPeriod || 'weekly';
+    const resolved = getResolvedInPeriod(period);
+    const high = resolved.filter(f => f.priority === 'High');
+    const med = resolved.filter(f => f.priority === 'Medium');
+    const low = resolved.filter(f => f.priority === 'Low');
+    const periodLabels = { weekly:'last 7 days', monthly:'last 30 days', yearly:'last 365 days' };
+
+    let h = '<div class="page-title">Reports</div><div class="page-sub">Resolved issues by priority \u00b7 ' + periodLabels[period] + '</div>';
+    h += '<div class="report-tabs">';
+    [['weekly','Weekly','ti-calendar-week'],['monthly','Monthly','ti-calendar-month'],['yearly','Yearly','ti-calendar-stats']].forEach(t =>
+      h += '<div class="report-tab' + (period===t[0]?' active':'') + '" onclick="setReportPeriod(\''+t[0]+'\')"><i class="ti '+t[2]+'" style="margin-right:4px;"></i>'+t[1]+'</div>'
+    );
+    h += '</div>';
+
+    h += '<div class="report-summary"><div class="report-summary-item"><div class="report-summary-label">Total resolved</div><div class="report-summary-val ok">' + resolved.length + '</div></div>';
+    h += '<div class="report-summary-item"><div class="report-summary-label">High priority</div><div class="report-summary-val warn">' + high.length + '</div></div>';
+    h += '<div class="report-summary-item"><div class="report-summary-label">Medium priority</div><div class="report-summary-val">' + med.length + '</div></div>';
+    h += '<div class="report-summary-item"><div class="report-summary-label">Low priority</div><div class="report-summary-val">' + low.length + '</div></div>';
+    const durations = resolved.filter(f => f.dateReported && (f.verifiedAt || f.markedDoneAt)).map(f => (new Date(f.verifiedAt || f.markedDoneAt) - new Date(f.dateReported))/(1000*60*60));
+    const avg = durations.length ? (durations.reduce((a,b)=>a+b,0)/durations.length) : 0;
+    h += '<div class="report-summary-item"><div class="report-summary-label">Avg resolution</div><div class="report-summary-val">' + (avg<24 ? avg.toFixed(1)+' hrs' : (avg/24).toFixed(1)+' days') + '</div></div></div>';
+
+    h += '<div class="report-priority-grid">';
+    [['high', 'High', high, 'ti-flame'], ['medium', 'Medium', med, 'ti-alert-triangle'], ['low', 'Low', low, 'ti-info-circle']].forEach(p => {
+      h += '<div class="priority-section '+p[0]+'"><div class="priority-section-head"><span><i class="ti '+p[3]+'"></i> '+p[1]+' priority</span><span class="priority-count">'+p[2].length+'</span></div><div class="priority-body">';
+      if (!p[2].length) h += '<div class="empty-state" style="padding:14px;"><i class="ti ti-check"></i>None</div>';
+      else p[2].forEach(f => h += '<div class="priority-issue-row" onclick="openFlowModal(\''+f.id+'\', \''+role+'\')"><div class="priority-issue-title">'+branchBadge(f.branch)+' '+f.id+'</div><div class="priority-issue-title" style="font-size:11px; font-weight:normal;">'+f.desc+'</div><div class="priority-issue-meta">'+f.dept+' \u00b7 '+f.area+' \u00b7 Resolved in '+f.duration+'</div></div>');
+      h += '</div></div>';
+    });
+    h += '</div>';
+
+    const byDept = {}; resolved.forEach(f => { byDept[f.dept] = (byDept[f.dept]||0)+1; });
+    const deptList = Object.keys(byDept).sort((a,b)=>byDept[b]-byDept[a]);
+    if (deptList.length) {
+      h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-chart-pie"></i>Resolved by department</span></div>';
+      deptList.forEach(d => { const pct = Math.round(byDept[d]/resolved.length*100);
+        h += '<div style="margin-bottom:8px;"><div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;"><b>'+d+'</b><span>'+byDept[d]+' issues \u00b7 '+pct+'%</span></div><div style="height:6px; background:var(--color-background-secondary); border-radius:3px; overflow:hidden;"><div style="height:100%; width:'+pct+'%; background:var(--color-border-info); border-radius:3px;"></div></div></div>';
+      });
+      h += '</div>';
+    }
+
+    const byBranch = { FSL:0, CLF:0, EXT:0 };
+    resolved.forEach(f => { byBranch[f.branch] = (byBranch[f.branch]||0)+1; });
+    h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-building"></i>Resolved by branch</span></div>';
+    Object.keys(byBranch).forEach(b => {
+      const pct = resolved.length ? Math.round(byBranch[b]/resolved.length*100) : 0;
+      h += '<div style="margin-bottom:8px;"><div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;"><b>'+branchBadge(b)+' '+BRANCHES[b].name+'</b><span>'+byBranch[b]+' issues \u00b7 '+pct+'%</span></div><div style="height:6px; background:var(--color-background-secondary); border-radius:3px; overflow:hidden;"><div style="height:100%; width:'+pct+'%; background:var(--color-border-info); border-radius:3px;"></div></div></div>';
+    });
+    h += '</div>';
+
+    return h;
+  }
+
+  const PAGES = {
+    'admin/dashboard': () => {
+      const pending = state.firs.filter(f => f.status === 'submitted').length;
+      const toVerify = state.firs.filter(f => f.subStatus === 'marked_done').length;
+      const inProg = state.firs.filter(f => f.status === 'pending' && f.subStatus !== 'marked_done').length;
+      const done = state.firs.filter(f => f.status === 'done').length;
+      let h = '<div class="page-title">Welcome, Altamash</div><div class="page-sub">Approve issues, verify completions, edit any field</div>';
+      h += '<div class="kpi-grid"><div class="kpi"><div class="kpi-label">Awaiting Approval</div><div class="kpi-val warn">' + pending + '</div></div><div class="kpi"><div class="kpi-label">Awaiting Verify</div><div class="kpi-val crit">' + toVerify + '</div></div><div class="kpi"><div class="kpi-label">In Progress</div><div class="kpi-val">' + inProg + '</div></div><div class="kpi"><div class="kpi-label">Done (total)</div><div class="kpi-val ok">' + done + '</div></div></div>';
+      if (toVerify > 0) h += '<div class="alert-card danger"><i class="ti ti-alert-triangle"></i><div><b>' + toVerify + ' issue' + (toVerify>1?'s':'') + ' awaiting your verification</b> \u2014 Hammad has sent reminders.</div></div>';
+      if (pending > 0) {
+        h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-inbox"></i>New issues to approve</span><button class="btn-sm" onclick="go(\'admin/approve\')">All</button></div>';
+        state.firs.filter(f => f.status === 'submitted').slice(0,3).forEach(f => h += '<div class="issue-card"><div class="issue-header"><span class="issue-id">'+f.id+'</span>'+branchBadge(f.branch)+priorityBadge(f.priority)+'</div><div class="issue-desc">'+f.desc+'</div><div class="issue-meta"><span><i class="ti ti-map-pin"></i>'+f.area+'</span><span><i class="ti ti-tool"></i>'+f.dept+'</span></div><div class="action-row"><button class="btn-sm success" onclick="adminApprove(\''+f.id+'\')"><i class="ti ti-check"></i>Approve</button><button class="btn-sm danger" onclick="adminReject(\''+f.id+'\')"><i class="ti ti-x"></i>Reject</button><button class="btn-sm" onclick="openFlowModal(\''+f.id+'\', \'admin\')">View flow</button></div></div>');
+        h += '</div>';
+      }
+      if (toVerify > 0) {
+        h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-checks"></i>Awaiting verification</span><button class="btn-sm" onclick="go(\'admin/verify\')">All</button></div>';
+        state.firs.filter(f => f.subStatus === 'marked_done').forEach(f => h += '<div class="issue-card reminder"><div class="issue-header"><span class="issue-id">'+f.id+'</span>'+branchBadge(f.branch)+priorityBadge(f.priority)+(f.reminderCount?'<span class="badge b-crit"><i class="ti ti-bell"></i> '+f.reminderCount+'</span>':'')+'</div><div class="issue-desc">'+f.desc+'</div><div class="issue-meta"><span><i class="ti ti-map-pin"></i>'+f.area+'</span><span><i class="ti ti-user"></i>'+f.assignedLabor+'</span></div><div class="action-row"><button class="btn-sm success" onclick="adminVerify(\''+f.id+'\')"><i class="ti ti-check"></i>Verify \u00b7 mark Done</button><button class="btn-sm" onclick="openFlowModal(\''+f.id+'\', \'admin\')">View flow</button></div></div>');
+        h += '</div>';
+      }
+      h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-activity"></i>Recent activity</span></div>';
+      state.activity.forEach(a => h += '<div class="stat-row"><span><span class="muted">'+a.time+'</span> \u00b7 '+a.text+'</span></div>');
+      h += '</div>'; return h;
+    },
+    'admin/approve': () => {
+      const list = state.firs.filter(f => f.status === 'submitted');
+      let h = '<div class="page-title">Approval Queue</div><div class="page-sub">'+list.length+' new issues</div>';
+      h += '<div class="flow-strip"><span class="flow-step done">Reporter logged</span><span class="flow-arrow">\u203a</span><span class="flow-step active">You approve</span><span class="flow-arrow">\u203a</span><span class="flow-step">Hammad aligns labor</span><span class="flow-arrow">\u203a</span><span class="flow-step">Hammad marks done</span><span class="flow-arrow">\u203a</span><span class="flow-step">You verify</span></div>';
+      if (!list.length) h += '<div class="section-card"><div class="empty-state"><i class="ti ti-check"></i>Nothing waiting.</div></div>';
+      else list.forEach(f => h += '<div class="issue-card"><div class="issue-header"><span class="issue-id">'+f.id+'</span>'+branchBadge(f.branch)+priorityBadge(f.priority)+'</div><div class="issue-desc">'+f.desc+'</div><div class="issue-meta"><span><i class="ti ti-map-pin"></i>'+f.area+'</span><span><i class="ti ti-tool"></i>'+f.dept+'</span><span><i class="ti ti-user"></i>'+f.reporter+'</span><span><i class="ti ti-clock"></i>'+fmtDate(f.dateReported)+'</span></div><div class="action-row"><button class="btn-sm success" onclick="adminApprove(\''+f.id+'\')"><i class="ti ti-check"></i>Approve</button><button class="btn-sm danger" onclick="adminReject(\''+f.id+'\')"><i class="ti ti-x"></i>Reject</button><button class="btn-sm" onclick="openFlowModal(\''+f.id+'\', \'admin\')">View flow</button></div></div>');
+      return h;
+    },
+    'admin/verify': () => {
+      const list = state.firs.filter(f => f.subStatus === 'marked_done');
+      let h = '<div class="page-title">Verification Queue</div><div class="page-sub">'+list.length+' BM-completed issues need your sign-off</div>';
+      h += '<div class="flow-strip"><span class="flow-step done">Reported</span><span class="flow-arrow">\u203a</span><span class="flow-step done">Approved</span><span class="flow-arrow">\u203a</span><span class="flow-step done">Labor done</span><span class="flow-arrow">\u203a</span><span class="flow-step done">Hammad marked done</span><span class="flow-arrow">\u203a</span><span class="flow-step active">You verify</span></div>';
+      if (!list.length) h += '<div class="section-card"><div class="empty-state"><i class="ti ti-check"></i>Nothing to verify.</div></div>';
+      else list.forEach(f => h += '<div class="issue-card reminder"><div class="issue-header"><span class="issue-id">'+f.id+'</span>'+branchBadge(f.branch)+priorityBadge(f.priority)+(f.reminderCount?'<span class="badge b-crit"><i class="ti ti-bell"></i> '+f.reminderCount+'</span>':'')+'</div><div class="issue-desc">'+f.desc+'</div><div class="issue-meta"><span><i class="ti ti-map-pin"></i>'+f.area+'</span><span><i class="ti ti-user"></i>'+(f.assignedLabor||'-')+'</span><span><i class="ti ti-calendar"></i>'+(f.scheduledDate||'-')+'</span><span><i class="ti ti-clock"></i>Marked done '+fmtDate(f.markedDoneAt)+'</span></div><div class="action-row"><button class="btn-sm success" onclick="adminVerify(\''+f.id+'\')"><i class="ti ti-check"></i>Verify \u00b7 mark Done</button><button class="btn-sm" onclick="openFlowModal(\''+f.id+'\', \'admin\')">View flow</button></div></div>');
+      return h;
+    },
+    'admin/status-tracker': () => {
+      const active = state.firs.filter(f => f.status !== 'done' && f.status !== 'rejected');
+      let h = '<div class="page-title">Status Tracker</div><div class="page-sub">Every active issue \u00b7 full 3-section flow \u00b7 Admin can edit any field</div>';
+      h += '<div class="filter-bar"><span class="filter-label">Branch:</span>';
+      ['All','FSL','CLF','EXT'].forEach(b => h += '<div class="filter-chip'+(b==='All'?' active':'')+'">'+b+'</div>');
+      h += '</div>';
+      if (!active.length) h += '<div class="section-card"><div class="empty-state"><i class="ti ti-mood-smile"></i>No active issues.</div></div>';
+      else active.forEach(f => h += renderFlowView(f, 'admin'));
+      return h;
+    },
+    'admin/all-issues': () => {
+      let h = '<div class="page-title">All Issues</div><div class="page-sub">'+state.firs.length+' total across all branches</div>';
+      h += '<div class="filter-bar"><span class="filter-label">Filter:</span><div class="filter-chip active">All</div><div class="filter-chip">Submitted</div><div class="filter-chip">Pending</div><div class="filter-chip">Done</div><div class="filter-chip">Rejected</div></div>';
+      h += '<div class="section-card">';
+      state.firs.forEach(f => h += '<div class="compact-row" onclick="openFlowModal(\''+f.id+'\', \'admin\')" style="cursor:pointer;"><div><div style="font-weight:500; display:flex; gap:6px; align-items:center;">'+branchBadge(f.branch)+' <span class="issue-id">'+f.id+'</span> \u00b7 '+f.desc+'</div><div class="muted">'+f.area+' \u00b7 '+f.dept+' \u00b7 Reported '+fmtDate(f.dateReported)+(f.duration?' \u00b7 Resolved in '+f.duration:'')+'</div></div><div style="display:flex; gap:4px; flex-direction:column; align-items:flex-end;">'+priorityBadge(f.priority)+statusBadge(f)+'</div></div>');
+      h += '</div>'; return h;
+    },
+    'admin/labor-calendar': () => renderCalendar('admin'),
+    'admin/reports': () => renderReports('admin'),
+    'admin/activity': () => {
+      let h = '<div class="page-title">Activity & Audit Log</div><div class="page-sub">Every action recorded</div><div class="section-card">';
+      state.auditLog.forEach(a => h += '<div class="stat-row"><span><span class="muted">'+a.time+'</span> \u00b7 <b>'+a.user+'</b> \u00b7 '+a.action+'</span></div>');
+      h += '</div>'; return h;
+    },
+    'bm/dashboard': () => {
+      const toAssign = state.firs.filter(f => f.subStatus === 'approved');
+      const inProgress = state.firs.filter(f => f.subStatus === 'assigned');
+      const awaiting = state.firs.filter(f => f.subStatus === 'marked_done');
+      let h = '<div class="page-title">Welcome, Hammad</div><div class="page-sub">Align labor, execute, push to Altamash</div>';
+      h += '<div class="kpi-grid"><div class="kpi"><div class="kpi-label">To Assign</div><div class="kpi-val warn">'+toAssign.length+'</div></div><div class="kpi"><div class="kpi-label">In Progress</div><div class="kpi-val">'+inProgress.length+'</div></div><div class="kpi"><div class="kpi-label">Awaiting Verify</div><div class="kpi-val crit">'+awaiting.length+'</div></div></div>';
+      if (awaiting.length) {
+        h += '<div class="reminder-banner"><i class="ti ti-bell"></i><div><b>Altamash verification pending for '+awaiting.length+' issue'+(awaiting.length>1?'s':'')+'</b> \u2014 these won\'t close until verified.</div></div>';
+        h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-clock-hour-4"></i>Awaiting Altamash verification</span></div>';
+        awaiting.forEach(f => h += '<div class="issue-card reminder"><div class="issue-header"><span class="issue-id">'+f.id+'</span>'+branchBadge(f.branch)+priorityBadge(f.priority)+(f.reminderCount?'<span class="badge b-crit">'+f.reminderCount+' sent</span>':'')+'</div><div class="issue-desc">'+f.desc+'</div><div class="issue-meta"><span><i class="ti ti-map-pin"></i>'+f.area+'</span><span><i class="ti ti-user"></i>'+f.assignedLabor+'</span></div><div class="action-row"><button class="btn-sm primary" onclick="sendReminder(\''+f.id+'\')"><i class="ti ti-bell"></i>Remind Altamash</button><button class="btn-sm" onclick="openFlowModal(\''+f.id+'\', \'bm\')">View flow</button></div></div>');
+        h += '</div>';
+      }
+      if (toAssign.length) {
+        h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-inbox"></i>Approved \u00b7 ready to assign labor</span></div>';
+        toAssign.forEach(f => { const r = ROOM_AVAIL[f.area] || {vacant:true,note:''};
+          h += '<div class="issue-card"><div class="issue-header"><span class="issue-id">'+f.id+'</span>'+branchBadge(f.branch)+priorityBadge(f.priority)+'</div><div class="issue-desc">'+f.desc+'</div><div class="issue-meta"><span><i class="ti ti-map-pin"></i>'+f.area+'</span><span><i class="ti ti-tool"></i>'+f.dept+'</span></div><div class="room-strip '+(r.vacant?'vacant':'occupied')+'"><i class="ti ti-'+(r.vacant?'check':'alert-circle')+'"></i>'+r.note+'</div><div class="action-row"><button class="btn-sm primary" onclick="bmAssignShow(\''+f.id+'\')"><i class="ti ti-calendar-plus"></i>Align labor</button><button class="btn-sm" onclick="openFlowModal(\''+f.id+'\', \'bm\')">View flow</button></div></div>';
+        });
+        h += '</div>';
+      }
+      if (inProgress.length) {
+        h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-tool"></i>In progress</span></div>';
+        inProgress.forEach(f => h += '<div class="issue-card"><div class="issue-header"><span class="issue-id">'+f.id+'</span>'+branchBadge(f.branch)+priorityBadge(f.priority)+'</div><div class="issue-desc">'+f.desc+'</div><div class="issue-meta"><span><i class="ti ti-map-pin"></i>'+f.area+'</span><span><i class="ti ti-user"></i>'+f.assignedLabor+'</span><span><i class="ti ti-calendar"></i>'+f.scheduledDate+' '+(f.scheduledTime||'')+'</span></div><div class="action-row"><button class="btn-sm success" onclick="bmMarkDone(\''+f.id+'\')"><i class="ti ti-check"></i>Mark done</button><button class="btn-sm" onclick="openFlowModal(\''+f.id+'\', \'bm\')">View flow</button></div></div>');
+        h += '</div>';
+      }
+      return h;
+    },
+    'bm/tasks': () => {
+      const list = state.firs.filter(f => f.subStatus === 'approved');
+      let h = '<div class="page-title">Approved Tasks</div><div class="page-sub">'+list.length+' approved by Altamash \u00b7 Assign labor</div>';
+      if (!list.length) h += '<div class="section-card"><div class="empty-state"><i class="ti ti-check"></i>All caught up.</div></div>';
+      else list.forEach(f => { const r = ROOM_AVAIL[f.area] || {vacant:true,note:''};
+        h += '<div class="issue-card"><div class="issue-header"><span class="issue-id">'+f.id+'</span>'+branchBadge(f.branch)+priorityBadge(f.priority)+'</div><div class="issue-desc">'+f.desc+'</div><div class="issue-meta"><span><i class="ti ti-map-pin"></i>'+f.area+'</span><span><i class="ti ti-tool"></i>'+f.dept+'</span></div><div class="room-strip '+(r.vacant?'vacant':'occupied')+'"><i class="ti ti-'+(r.vacant?'check':'alert-circle')+'"></i>'+r.note+'</div><div class="action-row"><button class="btn-sm primary" onclick="bmAssignShow(\''+f.id+'\')"><i class="ti ti-calendar-plus"></i>Align labor</button><button class="btn-sm" onclick="openFlowModal(\''+f.id+'\', \'bm\')">View flow</button></div></div>';
+      });
+      return h;
+    },
+    'bm/in-progress': () => {
+      const list = state.firs.filter(f => f.subStatus === 'assigned');
+      let h = '<div class="page-title">In Progress</div><div class="page-sub">'+list.length+' jobs with labor scheduled</div>';
+      if (!list.length) h += '<div class="section-card"><div class="empty-state"><i class="ti ti-tool"></i>No active work.</div></div>';
+      else list.forEach(f => h += '<div class="issue-card"><div class="issue-header"><span class="issue-id">'+f.id+'</span>'+branchBadge(f.branch)+priorityBadge(f.priority)+'</div><div class="issue-desc">'+f.desc+'</div><div class="issue-meta"><span><i class="ti ti-map-pin"></i>'+f.area+'</span><span><i class="ti ti-user"></i>'+f.assignedLabor+'</span><span><i class="ti ti-calendar"></i>'+f.scheduledDate+'</span></div><div class="action-row"><button class="btn-sm success" onclick="bmMarkDone(\''+f.id+'\')"><i class="ti ti-check"></i>Mark done</button><button class="btn-sm" onclick="openFlowModal(\''+f.id+'\', \'bm\')">View flow</button></div></div>');
+      return h;
+    },
+    'bm/awaiting-verify': () => {
+      const list = state.firs.filter(f => f.subStatus === 'marked_done');
+      let h = '<div class="page-title">Awaiting Altamash Verification</div><div class="page-sub">'+list.length+' issues \u2014 reminders auto-go until verified</div>';
+      if (!list.length) h += '<div class="section-card"><div class="empty-state"><i class="ti ti-check"></i>Nothing waiting.</div></div>';
+      else { h += '<div class="reminder-banner"><i class="ti ti-info-circle"></i><div>Use "Remind Altamash" to nudge.</div></div>';
+        list.forEach(f => h += '<div class="issue-card reminder"><div class="issue-header"><span class="issue-id">'+f.id+'</span>'+branchBadge(f.branch)+priorityBadge(f.priority)+(f.reminderCount?'<span class="badge b-crit"><i class="ti ti-bell"></i> '+f.reminderCount+' sent</span>':'')+'</div><div class="issue-desc">'+f.desc+'</div><div class="issue-meta"><span><i class="ti ti-map-pin"></i>'+f.area+'</span><span><i class="ti ti-user"></i>'+f.assignedLabor+'</span><span><i class="ti ti-clock"></i>Marked done '+fmtDate(f.markedDoneAt)+'</span></div><div class="action-row"><button class="btn-sm primary" onclick="sendReminder(\''+f.id+'\')"><i class="ti ti-bell"></i>Remind Altamash</button><button class="btn-sm" onclick="openFlowModal(\''+f.id+'\', \'bm\')">View flow</button></div></div>');
+      }
+      return h;
+    },
+    'bm/labor-calendar': () => renderCalendar('bm'),
+    'bm/reports': () => renderReports('bm'),
+    'reporter/new': () => {
+      let h = '<div class="page-title">Report New Issue</div><div class="page-sub">Welcome, Rashid \u00b7 Log what you found</div>';
+      h += '<div class="flow-strip"><span class="flow-step active">You report</span><span class="flow-arrow">\u203a</span><span class="flow-step">Altamash approves</span><span class="flow-arrow">\u203a</span><span class="flow-step">Hammad aligns labor</span><span class="flow-arrow">\u203a</span><span class="flow-step">Work done</span><span class="flow-arrow">\u203a</span><span class="flow-step">Altamash verifies</span></div>';
+      h += '<div class="section-card" style="text-align:center; padding:30px 20px;"><i class="ti ti-flag" style="font-size:32px; color:var(--color-text-secondary);"></i><div style="margin:10px 0 16px; font-size:13px;">Found something broken? Log it. Altamash reviews before it goes to Hammad.</div><button class="btn-sm primary" onclick="openNewIssueForm()" style="margin:0 auto;"><i class="ti ti-plus"></i>Report new issue</button></div>';
+      const mine = state.firs.filter(f => f.reporter && f.reporter.indexOf('Rashid') > -1).slice(0,5);
+      if (mine.length) {
+        h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-history"></i>My recent reports</span></div>';
+        mine.forEach(f => h += '<div class="compact-row" onclick="openFlowModal(\''+f.id+'\', \'reporter\')" style="cursor:pointer;"><div><div style="font-weight:500; display:flex; gap:6px; align-items:center;">'+branchBadge(f.branch)+' <span class="issue-id">'+f.id+'</span> \u00b7 '+f.desc+'</div><div class="muted">'+f.area+' \u00b7 '+fmtDate(f.dateReported)+'</div></div>'+statusBadge(f)+'</div>');
+        h += '</div>';
+      }
+      return h;
+    },
+    'reporter/my-reports': () => {
+      const mine = state.firs.filter(f => f.reporter && f.reporter.indexOf('Rashid') > -1);
+      let h = '<div class="page-title">My Reports</div><div class="page-sub">'+mine.length+' total reports</div><div class="section-card">';
+      if (!mine.length) h += '<div class="empty-state"><i class="ti ti-inbox"></i>None yet.</div>';
+      else mine.forEach(f => h += '<div class="compact-row" onclick="openFlowModal(\''+f.id+'\', \'reporter\')" style="cursor:pointer;"><div><div style="font-weight:500; display:flex; gap:6px; align-items:center;">'+branchBadge(f.branch)+' <span class="issue-id">'+f.id+'</span> \u00b7 '+f.desc+'</div><div class="muted">'+f.area+' \u00b7 '+f.dept+' \u00b7 '+fmtDate(f.dateReported)+(f.duration?' \u00b7 Resolved in '+f.duration:'')+'</div></div>'+statusBadge(f)+'</div>');
+      h += '</div>'; return h;
+    }
+  };
+
+  function NAVS() {
+    const pending = state.firs.filter(f => f.status === 'submitted').length;
+    const toVerify = state.firs.filter(f => f.subStatus === 'marked_done').length;
+    const toAssign = state.firs.filter(f => f.subStatus === 'approved').length;
+    const awaiting = state.firs.filter(f => f.subStatus === 'marked_done').length;
+    const active = state.firs.filter(f => f.status !== 'done' && f.status !== 'rejected').length;
+    return {
+      admin: [
+        { icon:'ti-layout-dashboard', label:'Dashboard', page:'admin/dashboard' },
+        { icon:'ti-inbox', label:'Approval Queue', page:'admin/approve', count: pending },
+        { icon:'ti-checks', label:'Verification Queue', page:'admin/verify', count: toVerify },
+        { icon:'ti-route', label:'Status Tracker', page:'admin/status-tracker', count: active },
+        { icon:'ti-list', label:'All Issues', page:'admin/all-issues' },
+        { icon:'ti-calendar', label:'Labor Calendar', page:'admin/labor-calendar' },
+        { icon:'ti-chart-bar', label:'Reports', page:'admin/reports' },
+        { icon:'ti-shield-check', label:'Activity Log', page:'admin/activity' }
+      ],
+      bm: [
+        { icon:'ti-layout-dashboard', label:'Dashboard', page:'bm/dashboard' },
+        { icon:'ti-inbox', label:'Approved Tasks', page:'bm/tasks', count: toAssign },
+        { icon:'ti-tool', label:'In Progress', page:'bm/in-progress' },
+        { icon:'ti-clock-hour-4', label:'Awaiting Verify', page:'bm/awaiting-verify', count: awaiting },
+        { icon:'ti-calendar', label:'Labor Calendar', page:'bm/labor-calendar' },
+        { icon:'ti-chart-bar', label:'Reports', page:'bm/reports' }
+      ],
+      reporter: [
+        { icon:'ti-plus', label:'Report New Issue', page:'reporter/new' },
+        { icon:'ti-history', label:'My Reports', page:'reporter/my-reports' }
+      ]
+    };
+  }
+
+  const USERS = {
+    admin: { initials:'AL', name:'Altamash', role:'Admin \u00b7 Hamsun HQ' },
+    bm: { initials:'HM', name:'Hammad', role:'Branch Manager \u00b7 FSL' },
+    reporter: { initials:'RH', name:'Rashid Hussain', role:'Reporter \u00b7 Housekeeping' }
+  };
+  const ROLE_LABELS = [['admin','ti-crown','Admin'],['bm','ti-building','Branch Manager'],['reporter','ti-flag','Reporter']];
+  const DEFAULT_PAGES = { admin:'admin/dashboard', bm:'bm/dashboard', reporter:'reporter/new' };
+
+  window.go = function(p) { state.currentPage = p; saveState(); renderSidebar(); renderMain(); };
+
+  function renderRoleSwitcher() {
+    const sw = document.getElementById('role-switcher');
+    sw.innerHTML = ROLE_LABELS.map(r => '<div class="role-btn '+(r[0]===state.currentRole?'active':'')+'" data-role="'+r[0]+'"><i class="ti '+r[1]+'"></i>'+r[2]+'</div>').join('');
+    sw.querySelectorAll('.role-btn').forEach(b => { b.onclick = () => { state.currentRole = b.dataset.role; state.currentPage = DEFAULT_PAGES[b.dataset.role]; saveState(); render(); }; });
+  }
+  function renderSidebar() {
+    const u = USERS[state.currentRole]; const nav = NAVS()[state.currentRole];
+    document.getElementById('sidebar').innerHTML = '<div class="user-card"><div class="user-avatar">'+u.initials+'</div><div class="user-name">'+u.name+'</div><div class="user-role">'+u.role+'</div></div>' + nav.map(n => '<div class="nav-item '+(n.page===state.currentPage?'active':'')+'" data-page="'+n.page+'"><i class="ti '+n.icon+'"></i>'+n.label+(n.count?'<span class="nav-count">'+n.count+'</span>':'')+'</div>').join('');
+    document.getElementById('sidebar').querySelectorAll('.nav-item').forEach(it => { it.onclick = () => go(it.dataset.page); });
+  }
+  function renderMain() {
+    const p = PAGES[state.currentPage];
+    document.getElementById('main').innerHTML = p ? p() : '<div class="empty-state"><i class="ti ti-mood-confuzed"></i>Not found</div>';
+    document.getElementById('header-sub').textContent = 'Maintenance Portal \u00b7 ' + USERS[state.currentRole].name;
+    const u = state.notifications.filter(n => !n.read).length;
+    document.getElementById('notif-dot').style.display = u > 0 ? 'block' : 'none';
+  }
+  function render() { renderRoleSwitcher(); renderSidebar(); renderMain(); }
+
+  document.getElementById('btn-notif').onclick = () => {
+    const h = document.getElementById('notif-host');
+    if (h.innerHTML) { h.innerHTML = ''; return; }
+    state.notifications.forEach(n => n.read = true); saveState();
+    if (!state.notifications.length) h.innerHTML = '<div class="notif-panel"><div class="empty-state"><i class="ti ti-bell-off"></i>None</div></div>';
+    else h.innerHTML = '<div class="notif-panel">' + state.notifications.map(n => '<div class="notif-item' + (n.urgent ? ' urgent' : '') + '"><div>' + (n.urgent ? '\u23f0 ' : '') + n.text + '</div><div class="notif-time">' + n.time + ' \u00b7 for ' + n.role + '</div></div>').join('') + '</div>';
+    renderMain();
+  };
+  document.getElementById('btn-reset').onclick = () => { if (confirm('Reset all data?')) resetState(); };
+
+  loadState();
+  if (!PAGES[state.currentPage]) state.currentPage = DEFAULT_PAGES[state.currentRole];
+  render();
+})();
+</script>
+</body>
+</html>
