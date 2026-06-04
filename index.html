@@ -1135,7 +1135,7 @@
       const toVerify = state.firs.filter(f => f.subStatus === 'marked_done').length;
       const inProg = state.firs.filter(f => f.status === 'pending' && f.subStatus !== 'marked_done').length;
       const done = state.firs.filter(f => f.status === 'done').length;
-      let h = '<div class="page-title">Welcome, Altamash</div><div class="page-sub">Approve issues, verify completions, edit any field</div>';
+      let h = '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;"><div><div class="page-title">Welcome, Altamash</div><div class="page-sub">Approve issues, verify completions, edit any field</div></div><button class="btn-sm" onclick="reporterManageShow()" title="Add / edit / delete reporter names"><i class="ti ti-users"></i>Reporter names</button></div>';
       h += '<div class="kpi-grid"><div class="kpi"><div class="kpi-label">Awaiting Approval</div><div class="kpi-val warn">' + pending + '</div></div><div class="kpi"><div class="kpi-label">Awaiting Verify</div><div class="kpi-val crit">' + toVerify + '</div></div><div class="kpi"><div class="kpi-label">In Progress</div><div class="kpi-val">' + inProg + '</div></div><div class="kpi"><div class="kpi-label">Done (total)</div><div class="kpi-val ok">' + done + '</div></div></div>';
       if (toVerify > 0) h += '<div class="alert-card danger"><i class="ti ti-alert-triangle"></i><div><b>' + toVerify + ' issue' + (toVerify>1?'s':'') + ' awaiting your verification</b> \u2014 Hammad has sent reminders.</div></div>';
       if (pending > 0) {
