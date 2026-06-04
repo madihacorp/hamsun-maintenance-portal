@@ -366,6 +366,42 @@
     return best;
   }
 
+  // New feature: anyone can report — pick the reporter from a managed list (add / edit / delete)
+  function reporterList() { return (state.reporters && state.reporters.length) ? state.reporters : ['Reporter']; }
+  function reporterOptionsHtml(selected) { return reporterList().map(n => '<option'+(selected===n?' selected':'')+'>'+n+'</option>').join(''); }
+  function reporterCaptureRows() {
+    const arr = [];
+    for (let i = 0; i < state.reporters.length; i++) { const el = document.getElementById('rep-name-'+i); arr.push(el ? (el.value||'').trim() : state.reporters[i]); }
+    return arr.filter(x => x);
+  }
+  window.reporterManageShow = function() {
+    const rows = state.reporters.map((n, i) => '<div class="avail-row"><input class="form-input" id="rep-name-'+i+'" value="'+n+'" style="flex:1;"><button class="btn-sm danger" onclick="reporterDelete('+i+')" title="Remove"><i class="ti ti-trash"></i></button></div>').join('');
+    const body = '<div class="muted" style="margin-bottom:10px;">These names appear in the “Reported by” list when logging an issue. Edit a name and Save, remove one, or add a new name.</div>' + rows +
+      '<div class="form-row" style="margin-top:8px;"><label class="form-label">Add a name</label><div style="display:flex; gap:8px;"><input class="form-input" id="rep-new" placeholder="e.g. Bilal" style="flex:1;"><button class="btn-sm primary" onclick="reporterAdd()"><i class="ti ti-plus"></i>Add</button></div></div>';
+    showModal('Manage reporter names', body, '<button class="btn-sm" onclick="closeModalBtn()">Close</button><button class="btn-sm primary" onclick="reporterSaveAll()"><i class="ti ti-check"></i>Save names</button>');
+  };
+  window.reporterAdd = function() {
+    const v = (document.getElementById('rep-new').value || '').trim();
+    if (!v) { toast('Enter a name'); return; }
+    const cur = reporterCaptureRows();
+    if (cur.indexOf(v) > -1) { toast('That name already exists'); return; }
+    cur.push(v); state.reporters = cur;
+    audit('System', 'Added reporter name ' + v); saveState(); reporterManageShow(); toast('Added');
+  };
+  window.reporterDelete = function(i) {
+    if (state.reporters.length <= 1) { toast('Keep at least one name'); return; }
+    const cur = reporterCaptureRows(); const n = cur[i] || state.reporters[i];
+    if (!confirm('Remove “' + n + '” from the list?')) return;
+    cur.splice(i, 1); state.reporters = cur;
+    audit('System', 'Removed reporter name ' + n); saveState(); reporterManageShow(); toast('Removed');
+  };
+  window.reporterSaveAll = function() {
+    const cur = reporterCaptureRows();
+    if (!cur.length) { toast('Keep at least one name'); return; }
+    state.reporters = cur;
+    audit('System', 'Updated reporter names'); saveState(); closeModal(); toast('Names saved'); render();
+  };
+
   // Feature 2: SLA thresholds (days since reported) per priority before the BM escalation alarm fires
   const SLA_DAYS = { High: 4, Medium: 10, Low: 20 };
   function slaThreshold(f) { return SLA_DAYS[f.priority] || 10; }
@@ -499,7 +535,8 @@
       { name:'PAINTER', keywords:['paint','wall','stain','peel','colour','color','primer','damp','patch'] },
       { name:'IT', keywords:['wifi','wi-fi','network','computer','internet','printer','system','router','cctv','camera','software','login','tv','phone'] },
       { name:'GENERAL', keywords:[] }
-    ]
+    ],
+    reporters: ['Attaullah', 'Kamran', 'Altamash', 'Hammad']
   };
 
   let state;
@@ -512,6 +549,7 @@
     if (!state.departments || !state.departments.length) state.departments = JSON.parse(JSON.stringify(DEFAULT_STATE.departments));
     if (typeof state.alarmSoundMuted !== 'boolean') state.alarmSoundMuted = false;
     if (typeof state.alarmSnoozeUntil !== 'number') state.alarmSnoozeUntil = 0;
+    if (!state.reporters || !state.reporters.length) state.reporters = JSON.parse(JSON.stringify(DEFAULT_STATE.reporters));
   }
   function saveState() { try { localStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch(e) {} }
   function resetState() { state = JSON.parse(JSON.stringify(DEFAULT_STATE)); saveState(); render(); toast('Reset'); }
@@ -583,7 +621,8 @@
 
   window.openNewIssueForm = function() {
     const firstBranch = Object.keys(BRANCHES)[0];
-    const body = '<div class="form-row"><label class="form-label">Branch</label><select class="form-input" id="ni-branch" onchange="niBranchChanged()">' + Object.keys(BRANCHES).map(b => '<option value="' + b + '">' + b + ' \u2014 ' + BRANCHES[b].name + '</option>').join('') + '</select></div>' +
+    const body = '<div class="form-row"><label class="form-label">Reported by <span class="muted">(who is logging this)</span></label><div style="display:flex; gap:8px;"><select class="form-input" id="ni-reporter" style="flex:1;">' + reporterOptionsHtml() + '</select><button class="btn-sm" onclick="reporterManageShow()" title="Add / edit / delete names"><i class="ti ti-users"></i></button></div></div>' +
+      '<div class="form-row"><label class="form-label">Branch</label><select class="form-input" id="ni-branch" onchange="niBranchChanged()">' + Object.keys(BRANCHES).map(b => '<option value="' + b + '">' + b + ' \u2014 ' + BRANCHES[b].name + '</option>').join('') + '</select></div>' +
       '<div class="form-row"><label class="form-label">Area / Location <span class="muted">(rooms of selected branch)</span></label><select class="form-input" id="ni-area" onchange="niAreaChanged()">' + roomsForBranch(firstBranch).map(a => '<option>' + a + '</option>').join('') + '</select></div>' +
       '<div id="ni-avail" class="room-strip"></div>' +
       '<div class="form-row"><label class="form-label">FIR Description</label><textarea class="form-input" rows="3" id="ni-desc" placeholder="Describe the issue clearly... (department is auto-detected)" oninput="niAutoDept()"></textarea></div>' +
@@ -622,9 +661,10 @@
     const id = nextFirId(branch);
     const desc = document.getElementById('ni-desc').value.trim() || 'New issue';
     const dept = window._niDeptManual ? document.getElementById('ni-dept').value : autoAssignDept(desc);
-    const fir = { id, branch, desc:desc, area:document.getElementById('ni-area').value, dept:dept, priority:document.getElementById('ni-priority').value, status:'submitted', reporter:'Rashid Hussain', dateReported:now(), verificationByAdmin:null, doneByBM:null, doneApprovedByAdmin:null, duration:null };
+    const reporter = (document.getElementById('ni-reporter') && document.getElementById('ni-reporter').value) || reporterList()[0];
+    const fir = { id, branch, desc:desc, area:document.getElementById('ni-area').value, dept:dept, priority:document.getElementById('ni-priority').value, status:'submitted', reporter:reporter, dateReported:now(), verificationByAdmin:null, doneByBM:null, doneApprovedByAdmin:null, duration:null };
     state.firs.unshift(fir);
-    addActivity('Reporter created ' + id + ' — auto-assigned to ' + dept); audit('Rashid', 'Created ' + id + ' (dept ' + dept + ')');
+    addActivity(reporter + ' created ' + id + ' — auto-assigned to ' + dept); audit(reporter, 'Created ' + id + ' (dept ' + dept + ')');
     notify('admin', 'New ' + id + ' awaiting approval');
     saveState(); closeModal(); toast(id + ' submitted'); render();
   };
@@ -1215,22 +1255,22 @@
     'bm/escalations': () => renderEscalations('bm'),
     'bm/reports': () => renderReports('bm'),
     'reporter/new': () => {
-      let h = '<div class="page-title">Report New Issue</div><div class="page-sub">Welcome, Rashid \u00b7 Log what you found</div>';
+      let h = '<div class="page-title">Report New Issue</div><div class="page-sub">Anyone on shift can log what they found \u00b7 pick your name on the form</div>';
       h += '<div class="flow-strip"><span class="flow-step active">You report</span><span class="flow-arrow">\u203a</span><span class="flow-step">Altamash approves</span><span class="flow-arrow">\u203a</span><span class="flow-step">Hammad aligns labor</span><span class="flow-arrow">\u203a</span><span class="flow-step">Work done</span><span class="flow-arrow">\u203a</span><span class="flow-step">Altamash verifies</span></div>';
       h += '<div class="section-card" style="text-align:center; padding:30px 20px;"><i class="ti ti-flag" style="font-size:32px; color:var(--color-text-secondary);"></i><div style="margin:10px 0 16px; font-size:13px;">Found something broken? Log it. Altamash reviews before it goes to Hammad.</div><button class="btn-sm primary" onclick="openNewIssueForm()" style="margin:0 auto;"><i class="ti ti-plus"></i>Report new issue</button></div>';
-      const mine = state.firs.filter(f => f.reporter && f.reporter.indexOf('Rashid') > -1).slice(0,5);
+      const mine = state.firs.slice().sort((a,b)=> (b.dateReported||'').localeCompare(a.dateReported||'')).slice(0,5);
       if (mine.length) {
-        h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-history"></i>My recent reports</span></div>';
-        mine.forEach(f => h += '<div class="compact-row" onclick="openFlowModal(\''+f.id+'\', \'reporter\')" style="cursor:pointer;"><div><div style="font-weight:500; display:flex; gap:6px; align-items:center;">'+branchBadge(f.branch)+' <span class="issue-id">'+f.id+'</span> \u00b7 '+f.desc+'</div><div class="muted">'+f.area+' \u00b7 '+fmtDate(f.dateReported)+'</div></div>'+statusBadge(f)+'</div>');
+        h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-history"></i>Recent reports</span></div>';
+        mine.forEach(f => h += '<div class="compact-row" onclick="openFlowModal(\''+f.id+'\', \'reporter\')" style="cursor:pointer;"><div><div style="font-weight:500; display:flex; gap:6px; align-items:center;">'+branchBadge(f.branch)+' <span class="issue-id">'+f.id+'</span> \u00b7 '+f.desc+'</div><div class="muted">'+(f.reporter?f.reporter+' \u00b7 ':'')+f.area+' \u00b7 '+fmtDate(f.dateReported)+'</div></div>'+statusBadge(f)+'</div>');
         h += '</div>';
       }
       return h;
     },
     'reporter/my-reports': () => {
-      const mine = state.firs.filter(f => f.reporter && f.reporter.indexOf('Rashid') > -1);
-      let h = '<div class="page-title">My Reports</div><div class="page-sub">'+mine.length+' total reports</div><div class="section-card">';
+      const mine = state.firs.slice().sort((a,b)=> (b.dateReported||'').localeCompare(a.dateReported||''));
+      let h = '<div class="page-title">All Reports</div><div class="page-sub">'+mine.length+' total reports</div><div class="section-card">';
       if (!mine.length) h += '<div class="empty-state"><i class="ti ti-inbox"></i>None yet.</div>';
-      else mine.forEach(f => h += '<div class="compact-row" onclick="openFlowModal(\''+f.id+'\', \'reporter\')" style="cursor:pointer;"><div><div style="font-weight:500; display:flex; gap:6px; align-items:center;">'+branchBadge(f.branch)+' <span class="issue-id">'+f.id+'</span> \u00b7 '+f.desc+'</div><div class="muted">'+f.area+' \u00b7 '+f.dept+' \u00b7 '+fmtDate(f.dateReported)+(f.duration?' \u00b7 Resolved in '+f.duration:'')+'</div></div>'+statusBadge(f)+'</div>');
+      else mine.forEach(f => h += '<div class="compact-row" onclick="openFlowModal(\''+f.id+'\', \'reporter\')" style="cursor:pointer;"><div><div style="font-weight:500; display:flex; gap:6px; align-items:center;">'+branchBadge(f.branch)+' <span class="issue-id">'+f.id+'</span> \u00b7 '+f.desc+'</div><div class="muted">'+(f.reporter?f.reporter+' \u00b7 ':'')+f.area+' \u00b7 '+f.dept+' \u00b7 '+fmtDate(f.dateReported)+(f.duration?' \u00b7 Resolved in '+f.duration:'')+'</div></div>'+statusBadge(f)+'</div>');
       h += '</div>'; return h;
     }
   };
@@ -1267,7 +1307,7 @@
       ],
       reporter: [
         { icon:'ti-plus', label:'Report New Issue', page:'reporter/new' },
-        { icon:'ti-history', label:'My Reports', page:'reporter/my-reports' }
+        { icon:'ti-history', label:'All Reports', page:'reporter/my-reports' }
       ]
     };
   }
@@ -1275,7 +1315,7 @@
   const USERS = {
     admin: { initials:'AL', name:'Altamash', role:'Admin \u00b7 Hamsun HQ' },
     bm: { initials:'HM', name:'Hammad', role:'Branch Manager \u00b7 FSL' },
-    reporter: { initials:'RH', name:'Rashid Hussain', role:'Reporter \u00b7 Housekeeping' }
+    reporter: { initials:'RS', name:'Reporting Station', role:'Shared \u00b7 Anyone on shift' }
   };
   const ROLE_LABELS = [['admin','ti-crown','Admin'],['bm','ti-building','Branch Manager'],['reporter','ti-flag','Reporter']];
   const DEFAULT_PAGES = { admin:'admin/dashboard', bm:'bm/dashboard', reporter:'reporter/new' };
