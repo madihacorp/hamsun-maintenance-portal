@@ -225,6 +225,10 @@
     .dept-name-wrap > i { color: var(--color-text-secondary); }
     .dept-name-input { font-weight: 600; text-transform: uppercase; }
     .dept-stat { font-size: 11px; color: var(--color-text-secondary); white-space: nowrap; }
+    .alarm-ctrl { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .alarm-ctrl-info b { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+    .alarm-ctrl-info .muted { font-size: 11px; margin-top: 2px; }
+    .alarm-ctrl button { flex-shrink: 0; }
 
     .report-priority-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
     .priority-section { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; }
@@ -506,6 +510,8 @@
     } catch(e) { state = JSON.parse(JSON.stringify(DEFAULT_STATE)); }
     if (!state.laborOff) state.laborOff = {};
     if (!state.departments || !state.departments.length) state.departments = JSON.parse(JSON.stringify(DEFAULT_STATE.departments));
+    if (typeof state.alarmSoundMuted !== 'boolean') state.alarmSoundMuted = false;
+    if (typeof state.alarmSnoozeUntil !== 'number') state.alarmSnoozeUntil = 0;
   }
   function saveState() { try { localStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch(e) {} }
   function resetState() { state = JSON.parse(JSON.stringify(DEFAULT_STATE)); saveState(); render(); toast('Reset'); }
@@ -696,10 +702,33 @@
   }
   function startAlarm() { if (_alarmTimer) return; beep(); _alarmTimer = setInterval(beep, 3000); }
   function stopAlarm() { if (_alarmTimer) { clearInterval(_alarmTimer); _alarmTimer = null; } }
+  // Sound is silenced if the Admin globally muted it, or the BM snoozed it and the snooze hasn't expired.
+  function alarmSnoozed() { return state.alarmSnoozeUntil && Date.now() < state.alarmSnoozeUntil; }
+  function alarmSilenced() { return !!state.alarmSoundMuted || alarmSnoozed(); }
+  function snoozeMinsLeft() { return alarmSnoozed() ? Math.max(1, Math.ceil((state.alarmSnoozeUntil - Date.now()) / 60000)) : 0; }
   function manageAlarm() {
-    const ring = state.currentRole === 'bm' && alarmFirs().length > 0;
+    const ring = state.currentRole === 'bm' && alarmFirs().length > 0 && !alarmSilenced();
     if (ring) startAlarm(); else stopAlarm();
   }
+  // BM: silence the sound for 1 hour (issues stay flagged; banners remain)
+  window.snoozeAlarm = function() {
+    state.alarmSnoozeUntil = Date.now() + 3600000;
+    stopAlarm();
+    audit('Hammad', 'Snoozed escalation alarm for 1 hour'); addActivity('Hammad snoozed the alarm for 1 hour');
+    saveState(); closeModal(); toast('Alarm snoozed for 1 hour — issues stay flagged'); render();
+  };
+  window.resumeAlarm = function() {
+    state.alarmSnoozeUntil = 0;
+    audit('Hammad', 'Resumed escalation alarm'); saveState(); toast('Alarm resumed'); render();
+  };
+  // Admin: globally turn the alarm sound on/off (visual banners stay either way)
+  window.toggleAlarmMute = function() {
+    state.alarmSoundMuted = !state.alarmSoundMuted;
+    if (state.alarmSoundMuted) stopAlarm();
+    audit('Altamash', state.alarmSoundMuted ? 'Muted escalation alarm sound (global)' : 'Unmuted escalation alarm sound (global)');
+    addActivity('Altamash ' + (state.alarmSoundMuted ? 'muted' : 'unmuted') + ' the alarm sound');
+    saveState(); toast(state.alarmSoundMuted ? 'Alarm sound muted globally' : 'Alarm sound unmuted'); render();
+  };
   function escalReasonText(f) {
     const e = f.escalation; if (!e) return '';
     let t = '<div class="escal-info"><b>BM reason:</b> ' + (e.reason || '\u2014') + '<br><b>Promised resolution:</b> ' + (e.expectedDate || '\u2014');
@@ -707,6 +736,19 @@
     if (e.history && e.history.length > 1) t += '<br><span class="muted">' + e.history.length + ' responses recorded</span>';
     if (e.adminDecision) t += '<br><b>Admin decision:</b> ' + e.adminDecision;
     return t + '</div>';
+  }
+
+  // Control bar shown on the Escalations pages: Admin global mute, BM snooze/resume
+  function alarmControlsHtml(role) {
+    if (role === 'admin') {
+      const muted = !!state.alarmSoundMuted;
+      return '<div class="section-card"><div class="alarm-ctrl"><div class="alarm-ctrl-info"><b><i class="ti ti-volume' + (muted ? '-off' : '') + '"></i> Alarm sound (global)</b><div class="muted">' + (muted ? 'Muted — the Branch Manager hears no sound. Visual flags and reminders still show.' : 'On — the Branch Manager hears the alarm for overdue issues.') + '</div></div><button class="btn-sm ' + (muted ? 'success' : 'danger') + '" onclick="toggleAlarmMute()"><i class="ti ti-' + (muted ? 'volume' : 'volume-off') + '"></i>' + (muted ? 'Unmute sound' : 'Mute sound') + '</button></div></div>';
+    }
+    let info, btn;
+    if (state.alarmSoundMuted) { info = 'Sound muted globally by Admin — you still see the flags below.'; btn = ''; }
+    else if (alarmSnoozed()) { info = 'Snoozed — sound resumes in about ' + snoozeMinsLeft() + ' min. Issues stay flagged.'; btn = '<button class="btn-sm" onclick="resumeAlarm()"><i class="ti ti-bell"></i>Resume now</button>'; }
+    else { info = 'On — rings until you record a reason + timeline. Snooze silences it for 1 hour.'; btn = '<button class="btn-sm" onclick="snoozeAlarm()"><i class="ti ti-bell-z"></i>Snooze 1 hour</button>'; }
+    return '<div class="section-card"><div class="alarm-ctrl"><div class="alarm-ctrl-info"><b><i class="ti ti-alarm"></i> Alarm</b><div class="muted">' + info + '</div></div>' + btn + '</div></div>';
   }
 
   // BM enters reason + timeline (alarm keeps ringing until this is submitted)
@@ -720,7 +762,7 @@
       '<div class="form-row"><label class="form-label">Reason it is not yet resolved</label><textarea class="form-input" rows="3" id="esc-reason" placeholder="e.g. spare part on order, awaiting guest checkout...">' + '</textarea></div>' +
       '<div class="form-row"><label class="form-label">Timeline required to resolve (date)</label><input class="form-input" type="date" id="esc-date" min="' + minDate + '" value="' + minDate + '"></div>' +
       '<div class="alert-card info"><i class="ti ti-info-circle"></i>If it is still open after this date, the alarm rings again for a new update. Altamash makes the final call.</div>';
-    showModal('\u23f0 Escalation \u2014 ' + id, body, '<button class="btn-sm primary" onclick="bmEscalationSave(\'' + id + '\')"><i class="ti ti-check"></i>Record reason & timeline</button>');
+    showModal('\u23f0 Escalation \u2014 ' + id, body, '<button class="btn-sm" onclick="snoozeAlarm()"><i class="ti ti-bell-z"></i>Snooze 1 hour</button><button class="btn-sm primary" onclick="bmEscalationSave(\'' + id + '\')"><i class="ti ti-check"></i>Record reason & timeline</button>');
   };
   window.bmEscalationSave = function(id) {
     const f = getFir(id);
@@ -973,6 +1015,7 @@
       '<div class="report-summary-item"><div class="report-summary-label">Medium SLA</div><div class="report-summary-val">10 days</div></div>' +
       '<div class="report-summary-item"><div class="report-summary-label">Low SLA</div><div class="report-summary-val">20 days</div></div></div>';
     if (role === 'bm' && alarm.length) h += '<div class="escal-banner"><i class="ti ti-alarm"></i><div><b>' + alarm.length + ' issue' + (alarm.length>1?'s':'') + ' awaiting your response</b> — the alarm rings until you record a reason and resolution timeline.</div></div>';
+    h += alarmControlsHtml(role);
     if (!all.length) { h += '<div class="section-card"><div class="empty-state"><i class="ti ti-mood-smile"></i>No overdue issues. Everything is within SLA.</div></div>'; return h; }
     all.forEach(f => {
       const need = alarm.indexOf(f) > -1;
@@ -1115,6 +1158,7 @@
       h += '<div class="kpi-grid"><div class="kpi"><div class="kpi-label">To Assign</div><div class="kpi-val warn">'+toAssign.length+'</div></div><div class="kpi"><div class="kpi-label">In Progress</div><div class="kpi-val">'+inProgress.length+'</div></div><div class="kpi"><div class="kpi-label">Awaiting Verify</div><div class="kpi-val crit">'+awaiting.length+'</div></div></div>';
       const escAlarm = alarmFirs(); const escAll = escalationFirs();
       if (escAlarm.length) h += '<div class="escal-banner"><i class="ti ti-alarm"></i><div><b>'+escAlarm.length+' overdue issue'+(escAlarm.length>1?'s':'')+' need your response NOW</b> — the alarm keeps ringing until you enter a reason and a resolution timeline for each.</div></div>';
+      if (escAlarm.length) h += alarmControlsHtml('bm');
       if (escAll.length) {
         h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-alarm"></i>Overdue / escalated</span><span class="badge b-crit">'+escAll.length+'</span></div>';
         escAll.forEach(f => { const need = escAlarm.indexOf(f) > -1;
@@ -1255,7 +1299,7 @@
     const u = state.notifications.filter(n => !n.read).length;
     document.getElementById('notif-dot').style.display = u > 0 ? 'block' : 'none';
     manageAlarm();
-    if (state.currentRole === 'bm' && !document.getElementById('modal-host').innerHTML) {
+    if (state.currentRole === 'bm' && !alarmSilenced() && !document.getElementById('modal-host').innerHTML) {
       const a = alarmFirs();
       if (a.length) bmEscalationRespond(a[0].id);
     }
