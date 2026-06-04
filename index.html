@@ -375,12 +375,14 @@
     return arr.filter(x => x);
   }
   window.reporterManageShow = function() {
+    if (state.currentRole !== 'admin') { toast('Only the admin can edit the reporter names'); return; }
     const rows = state.reporters.map((n, i) => '<div class="avail-row"><input class="form-input" id="rep-name-'+i+'" value="'+n+'" style="flex:1;"><button class="btn-sm danger" onclick="reporterDelete('+i+')" title="Remove"><i class="ti ti-trash"></i></button></div>').join('');
     const body = '<div class="muted" style="margin-bottom:10px;">These names appear in the “Reported by” list when logging an issue. Edit a name and Save, remove one, or add a new name.</div>' + rows +
       '<div class="form-row" style="margin-top:8px;"><label class="form-label">Add a name</label><div style="display:flex; gap:8px;"><input class="form-input" id="rep-new" placeholder="e.g. Bilal" style="flex:1;"><button class="btn-sm primary" onclick="reporterAdd()"><i class="ti ti-plus"></i>Add</button></div></div>';
     showModal('Manage reporter names', body, '<button class="btn-sm" onclick="closeModalBtn()">Close</button><button class="btn-sm primary" onclick="reporterSaveAll()"><i class="ti ti-check"></i>Save names</button>');
   };
   window.reporterAdd = function() {
+    if (state.currentRole !== 'admin') return;
     const v = (document.getElementById('rep-new').value || '').trim();
     if (!v) { toast('Enter a name'); return; }
     const cur = reporterCaptureRows();
@@ -389,6 +391,7 @@
     audit('System', 'Added reporter name ' + v); saveState(); reporterManageShow(); toast('Added');
   };
   window.reporterDelete = function(i) {
+    if (state.currentRole !== 'admin') return;
     if (state.reporters.length <= 1) { toast('Keep at least one name'); return; }
     const cur = reporterCaptureRows(); const n = cur[i] || state.reporters[i];
     if (!confirm('Remove “' + n + '” from the list?')) return;
@@ -396,6 +399,7 @@
     audit('System', 'Removed reporter name ' + n); saveState(); reporterManageShow(); toast('Removed');
   };
   window.reporterSaveAll = function() {
+    if (state.currentRole !== 'admin') return;
     const cur = reporterCaptureRows();
     if (!cur.length) { toast('Keep at least one name'); return; }
     state.reporters = cur;
@@ -621,7 +625,7 @@
 
   window.openNewIssueForm = function() {
     const firstBranch = Object.keys(BRANCHES)[0];
-    const body = '<div class="form-row"><label class="form-label">Reported by <span class="muted">(who is logging this)</span></label><div style="display:flex; gap:8px;"><select class="form-input" id="ni-reporter" style="flex:1;">' + reporterOptionsHtml() + '</select><button class="btn-sm" onclick="reporterManageShow()" title="Add / edit / delete names"><i class="ti ti-users"></i></button></div></div>' +
+    const body = '<div class="form-row"><label class="form-label">Reported by <span class="muted">(who is logging this)</span></label><div style="display:flex; gap:8px;"><select class="form-input" id="ni-reporter" style="flex:1;">' + reporterOptionsHtml() + '</select>' + (state.currentRole === 'admin' ? '<button class="btn-sm" onclick="reporterManageShow()" title="Add / edit / delete names"><i class="ti ti-users"></i></button>' : '') + '</div></div>' +
       '<div class="form-row"><label class="form-label">Branch</label><select class="form-input" id="ni-branch" onchange="niBranchChanged()">' + Object.keys(BRANCHES).map(b => '<option value="' + b + '">' + b + ' \u2014 ' + BRANCHES[b].name + '</option>').join('') + '</select></div>' +
       '<div class="form-row"><label class="form-label">Area / Location <span class="muted">(rooms of selected branch)</span></label><select class="form-input" id="ni-area" onchange="niAreaChanged()">' + roomsForBranch(firstBranch).map(a => '<option>' + a + '</option>').join('') + '</select></div>' +
       '<div id="ni-avail" class="room-strip"></div>' +
