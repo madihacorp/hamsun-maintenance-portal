@@ -506,7 +506,9 @@
     currentPage: 'reporter/new',
     nextFirNum: { FSL: 1006, CLF: 245, EXT: 88 },
     cal: { year: 2026, month: 5 },
-    reportPeriod: 'weekly',
+    reportPeriod: 'monthly',
+    reportFrom: '',
+    reportTo: '',
     notifications: [
       { role:'admin', text:'New FIR-FSL-1003 awaiting approval', time:'09:42', read:false },
       { role:'admin', text:'\u23f0 FIR-FSL-1000 marked done by Hammad \u2014 verify needed', time:'10:00', read:false, urgent:true },
@@ -554,6 +556,9 @@
     if (typeof state.alarmSoundMuted !== 'boolean') state.alarmSoundMuted = false;
     if (typeof state.alarmSnoozeUntil !== 'number') state.alarmSnoozeUntil = 0;
     if (!state.reporters || !state.reporters.length) state.reporters = JSON.parse(JSON.stringify(DEFAULT_STATE.reporters));
+    if (['daily','weekly','monthly','custom'].indexOf(state.reportPeriod) === -1) state.reportPeriod = 'monthly';
+    if (typeof state.reportFrom !== 'string') state.reportFrom = '';
+    if (typeof state.reportTo !== 'string') state.reportTo = '';
   }
   function saveState() { try { localStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch(e) {} }
   function resetState() { state = JSON.parse(JSON.stringify(DEFAULT_STATE)); saveState(); render(); toast('Reset'); }
@@ -916,6 +921,14 @@
     saveState(); renderMain();
   };
   window.setReportPeriod = function(p) { state.reportPeriod = p; saveState(); renderMain(); };
+  window.setReportRange = function() {
+    const from = document.getElementById('rep-from').value;
+    const to = document.getElementById('rep-to').value;
+    if (!from || !to) { toast('Pick both dates'); return; }
+    if (from > to) { toast('“From” must be on or before “To”'); return; }
+    state.reportPeriod = 'custom'; state.reportFrom = from; state.reportTo = to;
+    saveState(); renderMain();
+  };
   window.setIssueFilter = function(f) { window._issueFilter = f; renderMain(); };
 
   function renderCalendar(role) {
@@ -992,54 +1005,66 @@
   }
 
   function renderReports(role) {
-    const period = state.reportPeriod || 'weekly';
-    const resolved = getResolvedInPeriod(period);
-    const high = resolved.filter(f => f.priority === 'High');
-    const med = resolved.filter(f => f.priority === 'Medium');
-    const low = resolved.filter(f => f.priority === 'Low');
-    const periodLabels = { weekly:'last 7 days', monthly:'last 30 days', yearly:'last 365 days' };
+    const period = ['daily','weekly','monthly','custom'].indexOf(state.reportPeriod) > -1 ? state.reportPeriod : 'monthly';
+    const today = new Date();
+    const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23,59,59);
+    let start, end = endOfToday, label;
+    if (period === 'custom' && state.reportFrom && state.reportTo) {
+      start = new Date(state.reportFrom + 'T00:00:00');
+      end = new Date(state.reportTo + 'T23:59:59');
+      label = state.reportFrom + ' to ' + state.reportTo;
+    } else if (period === 'daily') {
+      start = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0,0,0); label = 'today';
+    } else if (period === 'weekly') {
+      start = new Date(endOfToday); start.setDate(start.getDate() - 6); start.setHours(0,0,0,0); label = 'last 7 days';
+    } else {
+      start = new Date(endOfToday); start.setDate(start.getDate() - 29); start.setHours(0,0,0,0); label = 'last 30 days';
+    }
+    const inRange = (d) => d >= start && d <= end;
+    const reported = state.firs.filter(f => f.dateReported && inRange(new Date(f.dateReported)));
+    const completed = state.firs.filter(f => f.status === 'done' && (f.verifiedAt || f.markedDoneAt) && inRange(new Date(f.verifiedAt || f.markedDoneAt)));
+    const rejected = state.firs.filter(f => f.status === 'rejected' && f.dateReported && inRange(new Date(f.dateReported)));
+    const stillOpen = state.firs.filter(f => isActiveFir(f)).length;
+    const rate = reported.length ? Math.round(completed.length / reported.length * 100) : 0;
 
-    let h = '<div class="page-title">Reports</div><div class="page-sub">Resolved issues by priority \u00b7 ' + periodLabels[period] + '</div>';
+    let h = '<div class="page-title">Reports</div><div class="page-sub">Reported vs completed \u00b7 ' + label + '</div>';
+
     h += '<div class="report-tabs">';
-    [['weekly','Weekly','ti-calendar-week'],['monthly','Monthly','ti-calendar-month'],['yearly','Yearly','ti-calendar-stats']].forEach(t =>
+    [['daily','Daily','ti-calendar'],['weekly','Weekly','ti-calendar-week'],['monthly','Monthly','ti-calendar-month'],['custom','Custom','ti-calendar-search']].forEach(t =>
       h += '<div class="report-tab' + (period===t[0]?' active':'') + '" onclick="setReportPeriod(\''+t[0]+'\')"><i class="ti '+t[2]+'" style="margin-right:4px;"></i>'+t[1]+'</div>'
     );
     h += '</div>';
 
-    h += '<div class="report-summary"><div class="report-summary-item"><div class="report-summary-label">Total resolved</div><div class="report-summary-val ok">' + resolved.length + '</div></div>';
-    h += '<div class="report-summary-item"><div class="report-summary-label">High priority</div><div class="report-summary-val warn">' + high.length + '</div></div>';
-    h += '<div class="report-summary-item"><div class="report-summary-label">Medium priority</div><div class="report-summary-val">' + med.length + '</div></div>';
-    h += '<div class="report-summary-item"><div class="report-summary-label">Low priority</div><div class="report-summary-val">' + low.length + '</div></div>';
-    const durations = resolved.filter(f => f.dateReported && (f.verifiedAt || f.markedDoneAt)).map(f => (new Date(f.verifiedAt || f.markedDoneAt) - new Date(f.dateReported))/(1000*60*60));
-    const avg = durations.length ? (durations.reduce((a,b)=>a+b,0)/durations.length) : 0;
-    h += '<div class="report-summary-item"><div class="report-summary-label">Avg resolution</div><div class="report-summary-val">' + (avg<24 ? avg.toFixed(1)+' hrs' : (avg/24).toFixed(1)+' days') + '</div></div></div>';
+    if (period === 'custom') {
+      const d30 = new Date(); d30.setDate(d30.getDate() - 29);
+      const defFrom = state.reportFrom || ds(d30.getFullYear(), d30.getMonth()+1, d30.getDate());
+      const defTo = state.reportTo || todayStr();
+      h += '<div class="section-card"><div class="two-col"><div class="form-row"><label class="form-label">From</label><input class="form-input" type="date" id="rep-from" value="'+defFrom+'"></div><div class="form-row"><label class="form-label">To</label><input class="form-input" type="date" id="rep-to" value="'+defTo+'"></div></div><button class="btn-sm primary" onclick="setReportRange()"><i class="ti ti-search"></i>Apply range</button></div>';
+    }
 
-    h += '<div class="report-priority-grid">';
-    [['high', 'High', high, 'ti-flame'], ['medium', 'Medium', med, 'ti-alert-triangle'], ['low', 'Low', low, 'ti-info-circle']].forEach(p => {
-      h += '<div class="priority-section '+p[0]+'"><div class="priority-section-head"><span><i class="ti '+p[3]+'"></i> '+p[1]+' priority</span><span class="priority-count">'+p[2].length+'</span></div><div class="priority-body">';
-      if (!p[2].length) h += '<div class="empty-state" style="padding:14px;"><i class="ti ti-check"></i>None</div>';
-      else p[2].forEach(f => h += '<div class="priority-issue-row" onclick="openFlowModal(\''+f.id+'\', \''+role+'\')"><div class="priority-issue-title">'+branchBadge(f.branch)+' '+f.id+'</div><div class="priority-issue-title" style="font-size:11px; font-weight:normal;">'+f.desc+'</div><div class="priority-issue-meta">'+f.dept+' \u00b7 '+f.area+' \u00b7 Resolved in '+f.duration+'</div></div>');
-      h += '</div></div>';
+    h += '<div class="report-summary">';
+    h += '<div class="report-summary-item"><div class="report-summary-label">Reported</div><div class="report-summary-val">' + reported.length + '</div></div>';
+    h += '<div class="report-summary-item"><div class="report-summary-label">Completed</div><div class="report-summary-val ok">' + completed.length + '</div></div>';
+    h += '<div class="report-summary-item"><div class="report-summary-label">Completion rate</div><div class="report-summary-val">' + rate + '%</div></div>';
+    h += '<div class="report-summary-item"><div class="report-summary-label">Rejected</div><div class="report-summary-val warn">' + rejected.length + '</div></div>';
+    h += '<div class="report-summary-item"><div class="report-summary-label">Still open (now)</div><div class="report-summary-val">' + stillOpen + '</div></div>';
+    const durs = completed.map(f => (new Date(f.verifiedAt || f.markedDoneAt) - new Date(f.dateReported))/(1000*60*60)).filter(x => x >= 0);
+    const avg = durs.length ? durs.reduce((a,b)=>a+b,0)/durs.length : 0;
+    h += '<div class="report-summary-item"><div class="report-summary-label">Avg resolution</div><div class="report-summary-val">' + (durs.length ? (avg<24 ? avg.toFixed(1)+' hrs' : (avg/24).toFixed(1)+' days') : '\u2014') + '</div></div>';
+    h += '</div>';
+
+    const byCat = {}; reported.forEach(f => { byCat[f.dept] = (byCat[f.dept]||0)+1; });
+    const cats = Object.keys(byCat).sort((a,b)=>byCat[b]-byCat[a]);
+    h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-chart-bar"></i>Reported by category</span><span class="muted">'+reported.length+'</span></div>';
+    if (!cats.length) h += '<div class="empty-state"><i class="ti ti-inbox"></i>Nothing reported in this period.</div>';
+    else cats.forEach(c => { const pct = Math.round(byCat[c]/reported.length*100);
+      h += '<div style="margin-bottom:8px;"><div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;"><b>'+c+'</b><span>'+byCat[c]+' \u00b7 '+pct+'%</span></div><div style="height:6px; background:var(--color-background-secondary); border-radius:3px; overflow:hidden;"><div style="height:100%; width:'+pct+'%; background:var(--color-border-info); border-radius:3px;"></div></div></div>';
     });
     h += '</div>';
 
-    const byDept = {}; resolved.forEach(f => { byDept[f.dept] = (byDept[f.dept]||0)+1; });
-    const deptList = Object.keys(byDept).sort((a,b)=>byDept[b]-byDept[a]);
-    if (deptList.length) {
-      h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-chart-pie"></i>Resolved by department</span></div>';
-      deptList.forEach(d => { const pct = Math.round(byDept[d]/resolved.length*100);
-        h += '<div style="margin-bottom:8px;"><div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;"><b>'+d+'</b><span>'+byDept[d]+' issues \u00b7 '+pct+'%</span></div><div style="height:6px; background:var(--color-background-secondary); border-radius:3px; overflow:hidden;"><div style="height:100%; width:'+pct+'%; background:var(--color-border-info); border-radius:3px;"></div></div></div>';
-      });
-      h += '</div>';
-    }
-
-    const byBranch = { FSL:0, CLF:0, EXT:0 };
-    resolved.forEach(f => { byBranch[f.branch] = (byBranch[f.branch]||0)+1; });
-    h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-building"></i>Resolved by branch</span></div>';
-    Object.keys(byBranch).forEach(b => {
-      const pct = resolved.length ? Math.round(byBranch[b]/resolved.length*100) : 0;
-      h += '<div style="margin-bottom:8px;"><div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;"><b>'+branchBadge(b)+' '+BRANCHES[b].name+'</b><span>'+byBranch[b]+' issues \u00b7 '+pct+'%</span></div><div style="height:6px; background:var(--color-background-secondary); border-radius:3px; overflow:hidden;"><div style="height:100%; width:'+pct+'%; background:var(--color-border-info); border-radius:3px;"></div></div></div>';
-    });
+    h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-checks"></i>Completed in period</span><span class="muted">'+completed.length+'</span></div>';
+    if (!completed.length) h += '<div class="empty-state"><i class="ti ti-check"></i>None completed in this period.</div>';
+    else completed.forEach(f => h += '<div class="compact-row" onclick="openFlowModal(\''+f.id+'\', \''+role+'\')" style="cursor:pointer;"><div><div style="font-weight:500;"><span class="issue-id">'+f.id+'</span> \u00b7 '+f.desc+'</div><div class="muted">'+f.dept+' \u00b7 '+f.area+(f.duration?' \u00b7 Resolved in '+f.duration:'')+'</div></div>'+statusBadge(f)+'</div>');
     h += '</div>';
 
     return h;
@@ -1294,13 +1319,15 @@
         { icon:'ti-layout-dashboard', label:'Dashboard', page:'admin/dashboard' },
         { icon:'ti-inbox', label:'Approval Queue', page:'admin/approve', count: pending },
         { icon:'ti-checks', label:'Verification Queue', page:'admin/verify', count: toVerify },
-        { icon:'ti-list', label:'All Issues', page:'admin/all-issues' }
+        { icon:'ti-list', label:'All Issues', page:'admin/all-issues' },
+        { icon:'ti-chart-bar', label:'Reports', page:'admin/reports' }
       ],
       bm: [
         { icon:'ti-layout-dashboard', label:'Dashboard', page:'bm/dashboard' },
         { icon:'ti-inbox', label:'Approved Tasks', page:'bm/tasks', count: toAssign },
         { icon:'ti-tool', label:'In Progress', page:'bm/in-progress' },
-        { icon:'ti-clock-hour-4', label:'Awaiting Verify', page:'bm/awaiting-verify', count: awaiting }
+        { icon:'ti-clock-hour-4', label:'Awaiting Verify', page:'bm/awaiting-verify', count: awaiting },
+        { icon:'ti-chart-bar', label:'Reports', page:'bm/reports' }
       ],
       reporter: [
         { icon:'ti-plus', label:'Report New Issue', page:'reporter/new' },
