@@ -631,11 +631,13 @@
   window.openNewIssueForm = function() {
     const body = '<div class="form-row"><label class="form-label">Reported by <span class="muted">(who is logging this)</span></label><div style="display:flex; gap:8px;"><select class="form-input" id="ni-reporter" style="flex:1;">' + reporterOptionsHtml() + '</select>' + (state.currentRole === 'admin' ? '<button class="btn-sm" onclick="reporterManageShow()" title="Add / edit / delete names"><i class="ti ti-users"></i></button>' : '') + '</div></div>' +
       '<div class="form-row"><label class="form-label">Area / Location</label><select class="form-input" id="ni-area">' + roomsForBranch(Object.keys(BRANCHES)[0]).map(a => '<option>' + a + '</option>').join('') + '</select></div>' +
-      '<div class="form-row"><label class="form-label">Description</label><textarea class="form-input" rows="3" id="ni-desc" placeholder="Describe the issue clearly..."></textarea></div>' +
-      '<div class="two-col"><div class="form-row"><label class="form-label">Category</label><select class="form-input" id="ni-dept">'+deptOptionsHtml()+'</select></div>' +
+      '<div class="form-row"><label class="form-label">Description</label><textarea class="form-input" rows="3" id="ni-desc" placeholder="Describe the issue clearly... (category is auto-detected)" oninput="niAutoDept()"></textarea></div>' +
+      '<div class="two-col"><div class="form-row"><label class="form-label">Category <span class="muted">(auto-detected)</span></label><select class="form-input" id="ni-dept" onchange="window._niDeptManual=true">'+deptOptionsHtml()+'</select></div>' +
       '<div class="form-row"><label class="form-label">Priority</label><select class="form-input" id="ni-priority"><option>High</option><option selected>Medium</option><option>Low</option></select></div></div>' +
+      '<div id="ni-dept-hint" class="escal-info" style="display:none;"></div>' +
       '<div class="form-row"><label class="form-label">Photo</label><div class="photo-box" onclick="this.classList.add(\'captured\'); this.innerHTML=\'<i class=ti ti-check></i> Captured\'"><i class="ti ti-camera" style="font-size:22px;"></i><div>Tap to capture</div></div></div>' +
       '<div class="alert-card info"><i class="ti ti-info-circle"></i>This will be sent to Altamash (Admin) for approval first.</div>';
+    window._niDeptManual = false;
     showModal('Report new issue', body, '<button class="btn-sm" onclick="closeModalBtn()">Cancel</button><button class="btn-sm primary" onclick="submitNewIssue()"><i class="ti ti-send"></i>Submit to Admin</button>');
   };
   window.niAutoDept = function() {
