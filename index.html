@@ -916,6 +916,7 @@
     saveState(); renderMain();
   };
   window.setReportPeriod = function(p) { state.reportPeriod = p; saveState(); renderMain(); };
+  window.setIssueFilter = function(f) { window._issueFilter = f; renderMain(); };
 
   function renderCalendar(role) {
     const mn = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -1174,10 +1175,18 @@
       return h;
     },
     'admin/all-issues': () => {
-      let h = '<div class="page-title">All Issues</div><div class="page-sub">'+state.firs.length+' total</div>';
-      h += '<div class="filter-bar"><span class="filter-label">Filter:</span><div class="filter-chip active">All</div><div class="filter-chip">Submitted</div><div class="filter-chip">Pending</div><div class="filter-chip">Done</div><div class="filter-chip">Rejected</div></div>';
+      const filt = window._issueFilter || 'All';
+      const match = (f) => filt === 'All' ? true
+        : filt === 'Submitted' ? f.status === 'submitted'
+        : filt === 'Pending' ? f.status === 'pending'
+        : filt === 'Done' ? f.status === 'done'
+        : filt === 'Rejected' ? f.status === 'rejected' : true;
+      const list = state.firs.filter(match);
+      let h = '<div class="page-title">All Issues</div><div class="page-sub">'+list.length+(filt==='All'?' total':' '+filt.toLowerCase())+'</div>';
+      h += '<div class="filter-bar"><span class="filter-label">Filter:</span>' + ['All','Submitted','Pending','Done','Rejected'].map(c => '<div class="filter-chip'+(c===filt?' active':'')+'" onclick="setIssueFilter(\''+c+'\')">'+c+'</div>').join('') + '</div>';
       h += '<div class="section-card">';
-      state.firs.forEach(f => h += '<div class="compact-row" onclick="openFlowModal(\''+f.id+'\', \'admin\')" style="cursor:pointer;"><div><div style="font-weight:500; display:flex; gap:6px; align-items:center;">'+branchBadge(f.branch)+' <span class="issue-id">'+f.id+'</span> \u00b7 '+f.desc+'</div><div class="muted">'+f.area+' \u00b7 '+f.dept+' \u00b7 Reported '+fmtDate(f.dateReported)+(f.duration?' \u00b7 Resolved in '+f.duration:'')+'</div></div><div style="display:flex; gap:4px; flex-direction:column; align-items:flex-end;">'+priorityBadge(f.priority)+statusBadge(f)+'</div></div>');
+      if (!list.length) h += '<div class="empty-state"><i class="ti ti-inbox"></i>No '+filt.toLowerCase()+' issues.</div>';
+      else list.forEach(f => h += '<div class="compact-row" onclick="openFlowModal(\''+f.id+'\', \'admin\')" style="cursor:pointer;"><div><div style="font-weight:500; display:flex; gap:6px; align-items:center;">'+branchBadge(f.branch)+' <span class="issue-id">'+f.id+'</span> \u00b7 '+f.desc+'</div><div class="muted">'+f.area+' \u00b7 '+f.dept+' \u00b7 Reported '+fmtDate(f.dateReported)+(f.duration?' \u00b7 Resolved in '+f.duration:'')+'</div></div><div style="display:flex; gap:4px; flex-direction:column; align-items:flex-end;">'+priorityBadge(f.priority)+statusBadge(f)+'</div></div>');
       h += '</div>'; return h;
     },
     'admin/labor-calendar': () => renderCalendar('admin'),
