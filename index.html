@@ -630,7 +630,7 @@
 
   window.openNewIssueForm = function() {
     const body = '<div class="form-row"><label class="form-label">Reported by <span class="muted">(who is logging this)</span></label><div style="display:flex; gap:8px;"><select class="form-input" id="ni-reporter" style="flex:1;">' + reporterOptionsHtml() + '</select>' + (state.currentRole === 'admin' ? '<button class="btn-sm" onclick="reporterManageShow()" title="Add / edit / delete names"><i class="ti ti-users"></i></button>' : '') + '</div></div>' +
-      '<div class="form-row"><label class="form-label">Area / Location</label><input class="form-input" id="ni-area" placeholder="e.g. Room 204, Lobby, Kitchen"></div>' +
+      '<div class="form-row"><label class="form-label">Area / Location</label><select class="form-input" id="ni-area">' + roomsForBranch(Object.keys(BRANCHES)[0]).map(a => '<option>' + a + '</option>').join('') + '</select></div>' +
       '<div class="form-row"><label class="form-label">Description</label><textarea class="form-input" rows="3" id="ni-desc" placeholder="Describe the issue clearly..."></textarea></div>' +
       '<div class="two-col"><div class="form-row"><label class="form-label">Category</label><select class="form-input" id="ni-dept">'+deptOptionsHtml()+'</select></div>' +
       '<div class="form-row"><label class="form-label">Priority</label><select class="form-input" id="ni-priority"><option>High</option><option selected>Medium</option><option>Low</option></select></div></div>' +
