@@ -565,7 +565,7 @@
   function getFir(id) { return state.firs.find(f => f.id === id); }
 
   function priorityBadge(p) { const m = {'High':'b-high','Medium':'b-med','Low':'b-low'}; return '<span class="badge ' + (m[p]||'b-med') + '">' + p + '</span>'; }
-  function branchBadge(b) { return '<span class="badge ' + BRANCHES[b].color + '">' + b + '</span>'; }
+  function branchBadge(b) { return ''; } // MVP: single property — branch chips hidden
   function statusBadge(f) {
     if (f.status === 'submitted') return '<span class="badge b-wait">Submitted</span>';
     if (f.status === 'rejected') return '<span class="badge b-crit">Rejected</span>';
@@ -624,20 +624,14 @@
   }
 
   window.openNewIssueForm = function() {
-    const firstBranch = Object.keys(BRANCHES)[0];
     const body = '<div class="form-row"><label class="form-label">Reported by <span class="muted">(who is logging this)</span></label><div style="display:flex; gap:8px;"><select class="form-input" id="ni-reporter" style="flex:1;">' + reporterOptionsHtml() + '</select>' + (state.currentRole === 'admin' ? '<button class="btn-sm" onclick="reporterManageShow()" title="Add / edit / delete names"><i class="ti ti-users"></i></button>' : '') + '</div></div>' +
-      '<div class="form-row"><label class="form-label">Branch</label><select class="form-input" id="ni-branch" onchange="niBranchChanged()">' + Object.keys(BRANCHES).map(b => '<option value="' + b + '">' + b + ' \u2014 ' + BRANCHES[b].name + '</option>').join('') + '</select></div>' +
-      '<div class="form-row"><label class="form-label">Area / Location <span class="muted">(rooms of selected branch)</span></label><select class="form-input" id="ni-area" onchange="niAreaChanged()">' + roomsForBranch(firstBranch).map(a => '<option>' + a + '</option>').join('') + '</select></div>' +
-      '<div id="ni-avail" class="room-strip"></div>' +
-      '<div class="form-row"><label class="form-label">FIR Description</label><textarea class="form-input" rows="3" id="ni-desc" placeholder="Describe the issue clearly... (department is auto-detected)" oninput="niAutoDept()"></textarea></div>' +
-      '<div class="two-col"><div class="form-row"><label class="form-label">Department <span class="muted">(auto-assigned)</span></label><select class="form-input" id="ni-dept" onchange="window._niDeptManual=true">'+deptOptionsHtml()+'</select></div>' +
+      '<div class="form-row"><label class="form-label">Area / Location</label><input class="form-input" id="ni-area" placeholder="e.g. Room 204, Lobby, Kitchen"></div>' +
+      '<div class="form-row"><label class="form-label">Description</label><textarea class="form-input" rows="3" id="ni-desc" placeholder="Describe the issue clearly..."></textarea></div>' +
+      '<div class="two-col"><div class="form-row"><label class="form-label">Category</label><select class="form-input" id="ni-dept">'+deptOptionsHtml()+'</select></div>' +
       '<div class="form-row"><label class="form-label">Priority</label><select class="form-input" id="ni-priority"><option>High</option><option selected>Medium</option><option>Low</option></select></div></div>' +
-      '<div id="ni-dept-hint" class="escal-info" style="display:none;"></div>' +
       '<div class="form-row"><label class="form-label">Photo</label><div class="photo-box" onclick="this.classList.add(\'captured\'); this.innerHTML=\'<i class=ti ti-check></i> Captured\'"><i class="ti ti-camera" style="font-size:22px;"></i><div>Tap to capture</div></div></div>' +
       '<div class="alert-card info"><i class="ti ti-info-circle"></i>This will be sent to Altamash (Admin) for approval first.</div>';
-    window._niDeptManual = false;
     showModal('Report new issue', body, '<button class="btn-sm" onclick="closeModalBtn()">Cancel</button><button class="btn-sm primary" onclick="submitNewIssue()"><i class="ti ti-send"></i>Submit to Admin</button>');
-    updateNiAvail();
   };
   window.niAutoDept = function() {
     const desc = document.getElementById('ni-desc').value;
@@ -661,14 +655,15 @@
   };
   window.niAreaChanged = function() { updateNiAvail(); };
   window.submitNewIssue = function() {
-    const branch = document.getElementById('ni-branch').value;
+    const branch = Object.keys(BRANCHES)[0];
     const id = nextFirId(branch);
     const desc = document.getElementById('ni-desc').value.trim() || 'New issue';
-    const dept = window._niDeptManual ? document.getElementById('ni-dept').value : autoAssignDept(desc);
+    const dept = document.getElementById('ni-dept').value;
     const reporter = (document.getElementById('ni-reporter') && document.getElementById('ni-reporter').value) || reporterList()[0];
-    const fir = { id, branch, desc:desc, area:document.getElementById('ni-area').value, dept:dept, priority:document.getElementById('ni-priority').value, status:'submitted', reporter:reporter, dateReported:now(), verificationByAdmin:null, doneByBM:null, doneApprovedByAdmin:null, duration:null };
+    const area = (document.getElementById('ni-area').value || '').trim() || 'Unspecified';
+    const fir = { id, branch, desc:desc, area:area, dept:dept, priority:document.getElementById('ni-priority').value, status:'submitted', reporter:reporter, dateReported:now(), verificationByAdmin:null, doneByBM:null, doneApprovedByAdmin:null, duration:null };
     state.firs.unshift(fir);
-    addActivity(reporter + ' created ' + id + ' — auto-assigned to ' + dept); audit(reporter, 'Created ' + id + ' (dept ' + dept + ')');
+    addActivity(reporter + ' created ' + id); audit(reporter, 'Created ' + id + ' (' + dept + ')');
     notify('admin', 'New ' + id + ' awaiting approval');
     saveState(); closeModal(); toast(id + ' submitted'); render();
   };
@@ -751,8 +746,8 @@
   function alarmSilenced() { return !!state.alarmSoundMuted || alarmSnoozed(); }
   function snoozeMinsLeft() { return alarmSnoozed() ? Math.max(1, Math.ceil((state.alarmSnoozeUntil - Date.now()) / 60000)) : 0; }
   function manageAlarm() {
-    const ring = state.currentRole === 'bm' && alarmFirs().length > 0 && !alarmSilenced();
-    if (ring) startAlarm(); else stopAlarm();
+    // MVP: audible escalation alarm is disabled. Overdue issues still surface visually.
+    stopAlarm();
   }
   // BM: silence the sound for 1 hour (issues stay flagged; banners remain)
   window.snoozeAlarm = function() {
@@ -1179,7 +1174,7 @@
       return h;
     },
     'admin/all-issues': () => {
-      let h = '<div class="page-title">All Issues</div><div class="page-sub">'+state.firs.length+' total across all branches</div>';
+      let h = '<div class="page-title">All Issues</div><div class="page-sub">'+state.firs.length+' total</div>';
       h += '<div class="filter-bar"><span class="filter-label">Filter:</span><div class="filter-chip active">All</div><div class="filter-chip">Submitted</div><div class="filter-chip">Pending</div><div class="filter-chip">Done</div><div class="filter-chip">Rejected</div></div>';
       h += '<div class="section-card">';
       state.firs.forEach(f => h += '<div class="compact-row" onclick="openFlowModal(\''+f.id+'\', \'admin\')" style="cursor:pointer;"><div><div style="font-weight:500; display:flex; gap:6px; align-items:center;">'+branchBadge(f.branch)+' <span class="issue-id">'+f.id+'</span> \u00b7 '+f.desc+'</div><div class="muted">'+f.area+' \u00b7 '+f.dept+' \u00b7 Reported '+fmtDate(f.dateReported)+(f.duration?' \u00b7 Resolved in '+f.duration:'')+'</div></div><div style="display:flex; gap:4px; flex-direction:column; align-items:flex-end;">'+priorityBadge(f.priority)+statusBadge(f)+'</div></div>');
@@ -1200,13 +1195,11 @@
       const awaiting = state.firs.filter(f => f.subStatus === 'marked_done');
       let h = '<div class="page-title">Welcome, Hammad</div><div class="page-sub">Align labor, execute, push to Altamash</div>';
       h += '<div class="kpi-grid"><div class="kpi"><div class="kpi-label">To Assign</div><div class="kpi-val warn">'+toAssign.length+'</div></div><div class="kpi"><div class="kpi-label">In Progress</div><div class="kpi-val">'+inProgress.length+'</div></div><div class="kpi"><div class="kpi-label">Awaiting Verify</div><div class="kpi-val crit">'+awaiting.length+'</div></div></div>';
-      const escAlarm = alarmFirs(); const escAll = escalationFirs();
-      if (escAlarm.length) h += '<div class="escal-banner"><i class="ti ti-alarm"></i><div><b>'+escAlarm.length+' overdue issue'+(escAlarm.length>1?'s':'')+' need your response NOW</b> — the alarm keeps ringing until you enter a reason and a resolution timeline for each.</div></div>';
-      if (escAlarm.length) h += alarmControlsHtml('bm');
-      if (escAll.length) {
-        h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-alarm"></i>Overdue / escalated</span><span class="badge b-crit">'+escAll.length+'</span></div>';
-        escAll.forEach(f => { const need = escAlarm.indexOf(f) > -1;
-          h += '<div class="issue-card'+(need?' urgent':'')+'"><div class="issue-header"><span class="issue-id">'+f.id+'</span>'+branchBadge(f.branch)+priorityBadge(f.priority)+'<span class="sla-badge">'+daysOpen(f)+'/'+slaThreshold(f)+'d open</span></div><div class="issue-desc">'+f.desc+'</div><div class="issue-meta"><span><i class="ti ti-map-pin"></i>'+f.area+'</span> '+roomAvailInline(f.area)+'</div>'+(f.escalation?escalReasonText(f):'')+'<div class="action-row"><button class="btn-sm '+(need?'danger':'')+'" onclick="bmEscalationRespond(\''+f.id+'\')"><i class="ti ti-alarm"></i>'+(need?'Respond now':'Update reason/timeline')+'</button><button class="btn-sm" onclick="openFlowModal(\''+f.id+'\', \'bm\')">View flow</button></div></div>';
+      const overdueList = escalationFirs();
+      if (overdueList.length) {
+        h += '<div class="section-card"><div class="section-title"><span class="section-title-left"><i class="ti ti-clock-exclamation"></i>Overdue</span><span class="badge b-crit">'+overdueList.length+'</span></div>';
+        overdueList.forEach(f => {
+          h += '<div class="issue-card"><div class="issue-header"><span class="issue-id">'+f.id+'</span>'+priorityBadge(f.priority)+'<span class="sla-badge">'+daysOpen(f)+'/'+slaThreshold(f)+'d open</span></div><div class="issue-desc">'+f.desc+'</div><div class="issue-meta"><span><i class="ti ti-map-pin"></i>'+f.area+'</span></div><div class="action-row"><button class="btn-sm" onclick="openFlowModal(\''+f.id+'\', \'bm\')">View flow</button></div></div>';
         });
         h += '</div>';
       }
@@ -1292,22 +1285,13 @@
         { icon:'ti-layout-dashboard', label:'Dashboard', page:'admin/dashboard' },
         { icon:'ti-inbox', label:'Approval Queue', page:'admin/approve', count: pending },
         { icon:'ti-checks', label:'Verification Queue', page:'admin/verify', count: toVerify },
-        { icon:'ti-route', label:'Status Tracker', page:'admin/status-tracker', count: active },
-        { icon:'ti-alarm', label:'Escalations', page:'admin/escalations', count: overdue },
-        { icon:'ti-list', label:'All Issues', page:'admin/all-issues' },
-        { icon:'ti-calendar', label:'Labor Calendar', page:'admin/labor-calendar' },
-        { icon:'ti-building-warehouse', label:'Departments', page:'admin/departments' },
-        { icon:'ti-chart-bar', label:'Reports', page:'admin/reports' },
-        { icon:'ti-shield-check', label:'Activity Log', page:'admin/activity' }
+        { icon:'ti-list', label:'All Issues', page:'admin/all-issues' }
       ],
       bm: [
         { icon:'ti-layout-dashboard', label:'Dashboard', page:'bm/dashboard' },
         { icon:'ti-inbox', label:'Approved Tasks', page:'bm/tasks', count: toAssign },
         { icon:'ti-tool', label:'In Progress', page:'bm/in-progress' },
-        { icon:'ti-clock-hour-4', label:'Awaiting Verify', page:'bm/awaiting-verify', count: awaiting },
-        { icon:'ti-alarm', label:'Escalations', page:'bm/escalations', count: bmAlarm },
-        { icon:'ti-calendar', label:'Labor Calendar', page:'bm/labor-calendar' },
-        { icon:'ti-chart-bar', label:'Reports', page:'bm/reports' }
+        { icon:'ti-clock-hour-4', label:'Awaiting Verify', page:'bm/awaiting-verify', count: awaiting }
       ],
       reporter: [
         { icon:'ti-plus', label:'Report New Issue', page:'reporter/new' },
@@ -1343,10 +1327,6 @@
     const u = state.notifications.filter(n => !n.read).length;
     document.getElementById('notif-dot').style.display = u > 0 ? 'block' : 'none';
     manageAlarm();
-    if (state.currentRole === 'bm' && !alarmSilenced() && !document.getElementById('modal-host').innerHTML) {
-      const a = alarmFirs();
-      if (a.length) bmEscalationRespond(a[0].id);
-    }
   }
   function render() { renderRoleSwitcher(); renderSidebar(); renderMain(); }
 
